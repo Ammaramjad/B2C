@@ -217,7 +217,7 @@ export function PassengerLive() {
       </div>
       <div className="absolute inset-x-0 bottom-20 z-[2000] md:bottom-4">
         <div className="mx-auto max-w-xl zf-panel p-4">
-          {shareMsg ? <p className="mb-2 text-xs text-[var(--signal)]">{shareMsg}</p> : null}
+          {shareMsg ? <p className="mb-2 text-xs text-[var(--signal)]" data-testid="share-url">{shareMsg}</p> : null}
           <div className="flex justify-between gap-4">
             <div>
               <div className="kicker">{live.bookingId} · {live.flight}</div>

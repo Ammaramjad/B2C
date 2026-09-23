@@ -695,12 +695,14 @@ export function Crm360() {
       ) : null}
       <div className="zf-panel mt-4 p-3">
         <div className="kicker">Case notes</div>
+        <div data-testid="crm-notes">
         {domain.notes.filter((n) => n.passengerId === p.id).map((n) => (
           <p key={n.id} className="text-sm">{n.at.slice(0, 16)} · {n.body}</p>
         ))}
+        </div>
         <div className="mt-2 flex gap-2">
-          <input className="flex-1 border border-[var(--line)] px-2 py-1" value={note} onChange={(e) => setNote(e.target.value)} />
-          <button type="button" className="zf-btn" style={{ minHeight: 36 }} onClick={() => { if (note) addNote(p.id, note); setNote(""); }}>
+          <input className="flex-1 border border-[var(--line)] px-2 py-1" data-testid="crm-note-input" aria-label="CRM note" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" className="zf-btn" data-testid="crm-note-add" style={{ minHeight: 36 }} onClick={() => { if (note) addNote(p.id, note); setNote(""); }}>
             Add note
           </button>
         </div>

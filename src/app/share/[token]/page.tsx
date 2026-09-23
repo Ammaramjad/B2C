@@ -1,15 +1,28 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { resolveBooking } from "@/lib/domain/booking";
 import { publicShareView, resolveShare } from "@/lib/domain/share";
 import { useLive } from "@/lib/live/engine";
 import { useStore } from "@/lib/store";
 
+function subscribe() {
+  return () => {};
+}
+
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
   const { domain, bookings } = useStore();
   const { live } = useLive();
+  const ready = useSyncExternalStore(subscribe, () => true, () => false);
+  if (!ready) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12">
+        <p className="text-sm">Resolving share token…</p>
+      </div>
+    );
+  }
   const resolved = resolveShare(typeof token === "string" ? token : undefined, domain.shares);
   if (resolved.status === "unknown") {
     return (

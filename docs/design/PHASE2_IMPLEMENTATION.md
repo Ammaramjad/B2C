@@ -24,6 +24,10 @@ Authoritative functions: `quote()`, `cancelFee()`, `vehicleFits()`, `rankReplace
 - Live drivers D-118 / D-221 / D-308.
 - Translation desk seed rows.
 
+## E2E (production `npm start` :3012)
+
+A–R all passed, plus 390/768/1024/1440 booking viewport checks. Script: `scripts/e2e-phase2.mjs`.
+
 ## Remaining production blockers
 
 Server persistence, authentication, production GPS/routing/ETA, flight vendor, PSP credentials, notification providers, fleet write API.
