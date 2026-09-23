@@ -212,16 +212,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const e = email.toLowerCase();
         const r: Role =
           role ??
-          (e.includes("ops") || e.includes("admin")
-            ? "ops"
-            : e.includes("dispatch")
-              ? "dispatcher"
-              : e.includes("driver")
-                ? "driver"
-                : "passenger");
-        const name = r === "ops" || r === "dispatcher" ? "Nova Lin" : r === "driver" ? "Kenji Mori" : "Amara Chen";
+          (e.includes("fleet")
+            ? "fleet_manager"
+            : e.includes("finance")
+              ? "finance"
+              : e.includes("support")
+                ? "support"
+                : e.includes("ops") || e.includes("admin")
+                  ? "ops"
+                  : e.includes("dispatch")
+                    ? "dispatcher"
+                    : e.includes("driver")
+                      ? "driver"
+                      : "passenger");
+        const names: Partial<Record<Role, string>> = {
+          ops: "Nova Lin",
+          dispatcher: "Rico Tan",
+          finance: "Priya Shah",
+          support: "Maya Chen",
+          fleet_manager: "Owen Park",
+          driver: "Kenji Mori",
+          passenger: "Amara Chen",
+        };
+        const name = names[r] ?? "Amara Chen";
         setUser({
-          id: r === "passenger" ? "p1" : r === "driver" ? "d1" : "ops",
+          id: r === "passenger" ? "p1" : r === "driver" ? "d1" : r,
           name,
           email: email || `${r}@zoudian.travel`,
           phone: "+886 900 880 101",

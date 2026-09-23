@@ -10,6 +10,14 @@ export const drivers: Driver[] = [
   { id: "d6", name: "Mina Park", rating: 4.88, trips: 720, vehicle: "Camry night", vehicleClass: "sedan", plate: "KHH-6602", city: "Kaohsiung", work: "available", languages: ["EN", "ZH"], photo: "MP", phone: "+886 966 660 202", license: "TW-DRV-6602", fleet: "A", fuel: "petrol", vehicleState: "active", status: "approved", joined: "2023-11-02", acceptRate: 0.93, earningsToday: 1980, earningsWeek: 22100, earningsMonth: 88000, earningsYtd: 510000, pendingPayout: 17680, completedWeek: 11, cancelledWeek: 0, emptyKmWeek: 55, commissionRate: COMMISSION },
 ];
 
+export const staffUsers: { id: string; name: string; email: string; role: "ops" | "dispatcher" | "finance" | "support" | "fleet_manager" }[] = [
+  { id: "ops", name: "Nova Lin", email: "nova@zoudian.travel", role: "ops" },
+  { id: "disp1", name: "Rico Tan", email: "desk@zoudian.travel", role: "dispatcher" },
+  { id: "fin1", name: "Priya Shah", email: "finance@zoudian.travel", role: "finance" },
+  { id: "sup1", name: "Maya Chen", email: "support@zoudian.travel", role: "support" },
+  { id: "flt1", name: "Owen Park", email: "fleet@zoudian.travel", role: "fleet_manager" },
+];
+
 export const passengers: PassengerProfile[] = [
   { id: "p1", name: "Amara Chen", email: "amara@zoudian.travel", phone: "+886 900 880 101", city: "Taipei", lastDriverId: "d1", points: 4280, rfm: "champion", trips: 18, spendTwd: 41200 },
   { id: "p2", name: "James Wu", email: "james.wu@example.com", phone: "+886 911 220 334", city: "Taipei", lastDriverId: "d3", points: 1560, rfm: "loyal", trips: 7, spendTwd: 18600 },

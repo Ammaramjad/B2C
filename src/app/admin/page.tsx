@@ -2,27 +2,37 @@
 
 import { useState } from "react";
 import { demandSlots, imports, zones } from "@/lib/catalog";
-import { drivers, kpis, passengers } from "@/lib/data";
+import { drivers, kpis, passengers, staffUsers } from "@/lib/data";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { AreaChart } from "@/components/charts";
 import { Btn, Stat } from "@/components/ui";
 
-const groups = {
+const groups: Record<string, readonly string[]> = {
   Today: ["overview", "analytics"],
-  Network: ["bookings", "customers", "drivers"],
+  Network: ["bookings", "customers", "drivers", "users"],
   Commerce: ["finance"],
   Care: ["tickets", "loyalty"],
   System: ["config"],
-} as const;
+};
+
+const roleModules: Record<string, string[]> = {
+  ops: ["overview", "analytics", "bookings", "customers", "drivers", "users", "finance", "tickets", "loyalty", "config"],
+  dispatcher: ["overview", "bookings", "drivers"],
+  finance: ["overview", "finance", "bookings"],
+  support: ["overview", "tickets", "customers", "bookings"],
+  fleet_manager: ["overview", "drivers", "bookings"],
+};
 
 export default function AdminPage() {
   const { user, login, locale, currency, bookings, tickets, settlements, cancelMidPct, setCancelMidPct } = useStore();
   const [mod, setMod] = useState("overview");
+  const [roles, setRoles] = useState(() => staffUsers.map((u) => ({ ...u })));
   const zh = locale === "zh";
+  const allowed = user ? roleModules[user.role] ?? [] : [];
 
-  if (!user || user.role !== "ops") {
+  if (!user || !allowed.length) {
     return (
       <div className="space-y-3 py-10">
         <h1 className="display text-3xl">Admin</h1>
@@ -38,7 +48,7 @@ export default function AdminPage() {
           <div key={g}>
             <div className="label mb-2">{g}</div>
             <div className="space-y-1">
-              {items.map((id) => (
+              {items.filter((id) => allowed.includes(id)).map((id) => (
                 <button key={id} onClick={() => setMod(id)} className={`block capitalize ${mod === id ? "" : "text-[var(--muted)]"}`}>
                   {id}
                 </button>
@@ -81,8 +91,40 @@ export default function AdminPage() {
           ))}
         {mod === "drivers" &&
           drivers.map((d) => (
-            <p key={d.id}>{d.name} · {d.work} · fleet {d.fleet}</p>
+            <p key={d.id}>{d.name} · {d.work} · fleet {d.fleet} · {d.status}</p>
           ))}
+        {mod === "users" && (
+          <div className="space-y-3">
+            <h1 className="display text-3xl">{loc(locale, "Staff roles", "內部角色")}</h1>
+            <p className="text-sm text-[var(--muted)]">{loc(locale, "Multiple users. Role changes are demo-only on this device.", "多位使用者。角色變更僅在此裝置示範。")}</p>
+            {roles.map((u, i) => (
+              <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] py-2">
+                <span>{u.name}<span className="block text-xs text-[var(--muted)]">{u.email}</span></span>
+                <select
+                  className="w-auto"
+                  value={u.role}
+                  onChange={(e) => {
+                    const next = [...roles];
+                    next[i] = { ...u, role: e.target.value as typeof u.role };
+                    setRoles(next);
+                  }}
+                >
+                  {["ops", "dispatcher", "finance", "support", "fleet_manager"].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <h2 className="display pt-4 text-xl">{loc(locale, "Customers", "旅客")}</h2>
+            {passengers.map((p) => (
+              <p key={p.id} className="text-sm">{p.name} · passenger · {p.trips} trips</p>
+            ))}
+            <h2 className="display pt-4 text-xl">{loc(locale, "Drivers", "司機")}</h2>
+            {drivers.map((d) => (
+              <p key={d.id} className="text-sm">{d.name} · driver · {d.work}</p>
+            ))}
+          </div>
+        )}
         {mod === "finance" &&
           settlements.map((s) => (
             <p key={s.id}>{s.week} · {money(convert(s.net, currency), currency)}</p>

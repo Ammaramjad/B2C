@@ -41,6 +41,7 @@ export default function HomePage() {
                 placeholder={zh ? "台北 101、桃園機場…" : "Taipei 101, TPE…"}
               />
               <Btn type="submit">{loc(locale, "Continue", "繼續")}</Btn>
+              <Btn kind="ghost" href="/customer">{loc(locale, "Customer dashboard", "旅客後台")}</Btn>
             </form>
             <div className="flex flex-wrap gap-2">
               {services.map((s) => (

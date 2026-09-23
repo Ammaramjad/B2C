@@ -1,6 +1,6 @@
 export type Locale = "en" | "zh";
 export type Currency = "TWD" | "USD";
-export type Role = "guest" | "passenger" | "driver" | "ops" | "dispatcher";
+export type Role = "guest" | "passenger" | "driver" | "ops" | "dispatcher" | "finance" | "support" | "fleet_manager";
 
 export type ServiceType =
   | "airport_pickup"
