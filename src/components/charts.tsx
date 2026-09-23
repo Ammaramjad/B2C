@@ -1,10 +1,10 @@
 "use client";
 
 export function AreaChart({
-  values,
+  values = [12, 18, 16, 22, 20, 19, 24],
   label,
 }: {
-  values: number[];
+  values?: number[];
   label?: string;
 }) {
   const max = Math.max(...values, 1);
@@ -22,23 +22,21 @@ export function AreaChart({
     <div>
       {label && <div className="label mb-2">{label}</div>}
       <svg viewBox={`0 0 ${w} ${h}`} className="h-24 w-full">
-        <polyline points={fill} fill="rgba(47,107,255,0.16)" />
-        <polyline
-          points={pts}
-          fill="none"
-          stroke="#2f6bff"
-          strokeWidth="2.4"
-          className="chart-stroke"
-        />
+        <polyline points={fill} fill="color-mix(in srgb, var(--brand) 16%, transparent)" />
+        <polyline points={pts} fill="none" stroke="var(--brand)" strokeWidth="2.4" className="chart-stroke" />
       </svg>
     </div>
   );
 }
 
 export function Bars({
-  items,
+  items = [
+    { name: "Airport", value: 40 },
+    { name: "P2P", value: 24 },
+    { name: "Other", value: 12 },
+  ],
 }: {
-  items: { name: string; value: number }[];
+  items?: { name: string; value: number }[];
 }) {
   const max = Math.max(...items.map((i) => i.value), 1);
   return (

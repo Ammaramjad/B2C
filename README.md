@@ -11,12 +11,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Live share links (use these — old trycloudflare hostnames die):**
-
-1. https://emotions-ceremony-occupation-memory.trycloudflare.com
-2. https://open-papayas-start.loca.lt
-3. https://85fd1f69589d25.lhr.life
-
 ## Demo roles
 
 - Passenger: any email on `/login`
