@@ -66,7 +66,9 @@ export function DriverOffer() {
           Reject
         </button>
         <button
+          type="button"
           className="zf-btn"
+          data-testid="accept-offer"
           style={{ minHeight: 72, fontSize: 20 }}
           onClick={() => {
             if (urgent) acceptReplacement();
@@ -140,7 +142,9 @@ export function DriverIncident() {
       </div>
       <textarea className="w-full border border-[var(--line)] bg-[var(--paper)] p-3" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
       <button
+        type="button"
         className="zf-btn wide"
+        data-testid="report-incident"
         style={{ minHeight: 56 }}
         onPointerDown={() => {
           setArmed(true);

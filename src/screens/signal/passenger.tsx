@@ -167,7 +167,7 @@ export function AirportBook() {
             <div className="kicker">Quote updates live</div>
             <div className="zf-metric text-3xl">NT${fare.toLocaleString()}</div>
           </div>
-          <button className="zf-btn" disabled={!fit} onClick={confirm}>
+          <button type="button" className="zf-btn" disabled={!fit} data-testid="confirm-airport" onClick={confirm}>
             Confirm & pay NT${fare.toLocaleString()}
           </button>
         </div>
@@ -271,7 +271,7 @@ export function PreferredDrivers() {
               {david.rating} ★ · {david.ridesWithSarah} rides with you · last {david.lastRide} · {david.klass} · {Math.round(david.onTime * 100)}% on-time
             </div>
           </div>
-          <button className="zf-btn" onClick={() => requestPreferred(david.id)}>
+          <button type="button" className="zf-btn" data-testid="request-preferred" onClick={() => requestPreferred(david.id)}>
             Request this driver
           </button>
         </div>
@@ -292,17 +292,17 @@ export function PreferredDrivers() {
           ))}
         </ol>
         {st === "requested" ? (
-          <button className="zf-btn mt-3" onClick={() => void companyValidate()}>
+          <button type="button" className="zf-btn mt-3" data-testid="preferred-validate" onClick={() => void companyValidate()}>
             Company validate
           </button>
         ) : null}
         {st === "validating" ? (
-          <button className="zf-btn mt-3" onClick={offerPreferred}>
+          <button type="button" className="zf-btn mt-3" data-testid="preferred-offer" onClick={offerPreferred}>
             Issue company offer
           </button>
         ) : null}
         {st === "offered" ? (
-          <button className="zf-btn mt-3" onClick={acceptPreferred}>
+          <button type="button" className="zf-btn mt-3" data-testid="preferred-accept" onClick={acceptPreferred}>
             David accepts (driver app)
           </button>
         ) : null}

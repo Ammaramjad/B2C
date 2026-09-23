@@ -81,14 +81,12 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
   const onDuty = ["en_route_airport", "near_airport", "arrived", "waiting", "trip_started", "en_route_dest", "reassigned", "disrupted"].includes(live.phase);
   return (
     <div className="mx-auto min-h-screen max-w-[430px] bg-[var(--mist)]">
-      <header className="flex items-center justify-between px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <div>
           <div className="kicker">Driver command</div>
           <div className="text-lg font-semibold">David / Jason</div>
         </div>
-        <Link href="/demo" className="text-[11px] text-[var(--mute)]">
-          Demo
-        </Link>
+        <Director />
       </header>
       {onDuty ? (
         <Link href="/driver/incident" className="mx-4 mb-3 block bg-[var(--signal)] py-3 text-center text-sm font-bold text-white">

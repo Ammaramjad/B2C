@@ -69,6 +69,8 @@ export function applyAcceptOffer(s: LiveSnapshot): LiveSnapshot {
     replacementId: next,
     offerTo: null,
     customerNotice: CUSTOMER_REASSIGN_COPY,
+    traffic: "clear",
+    trafficNote: "Replacement driver en route. Assignment is company-owned.",
     etaMin: d?.etaMin ?? 7,
     distanceKm: d?.km ?? 2.8,
     incident: s.incident ? { ...s.incident, ack: true } : s.incident,

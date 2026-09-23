@@ -207,7 +207,7 @@ export function DispatchBoard() {
                 <li key={w}>{w}</li>
               ))}
             </ul>
-            <button className="zf-btn mt-2" onClick={() => sendReplacement(c.id)}>
+            <button type="button" className="zf-btn mt-2" data-testid={`send-offer-${c.id}`} onClick={() => sendReplacement(c.id)}>
               Send replacement offer
             </button>
           </div>
