@@ -1,6 +1,15 @@
-# ZOUFENG AETHER — B2C International Mobility OS
+# Zoufeng Signal — Live Mobility OS
 
-Futuristic passenger, driver, and operations demo for the Zoufeng v11 / v12.1 blueprint: airport transfers, point-to-point, charter, taxi, self-drive, designated driver, AI itinerary, live OTP/SOS, wallet, loyalty, Halo support, and ops console.
+Design-checkpoint prototype. **Not approved for production implementation.**
+
+This is a realtime, map-first operating system preview:
+
+- Passenger live pickup
+- Driver incident + duty
+- Operations command / airport / replacement
+- Two connected scenarios (ZF-82041 disruption, preferred driver)
+
+GPS and traffic in this preview are **simulated** through the same event names production will use.
 
 ## Run
 
@@ -9,18 +18,15 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+- `/design` — inventory, motion, map approach
+- `/demo` — scenario director
+- `/` `/book` `/live` `/preferred`
+- `/driver` `/driver/incident`
+- `/ops` `/ops/incident` `/ops/replace`
 
-**Live share links (use these — old trycloudflare hostnames die):**
+Header: Play scenario / Next beat / Reset.
 
-1. https://emotions-ceremony-occupation-memory.trycloudflare.com
-2. https://open-papayas-start.loca.lt
-3. https://85fd1f69589d25.lhr.life
-
-## Demo roles
-
-- Passenger: any email on `/login`
-- Driver: email containing `driver` or choose Driver
-- Ops: email containing `ops` or choose Operations
-
-Payments, flights, dispatch, and FX are simulated on-device (localStorage).
+```bash
+npm run lint
+npm run build
+```

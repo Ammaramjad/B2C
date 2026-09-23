@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_TC } from "next/font/google";
+import { IBM_Plex_Mono, Noto_Sans_TC, Outfit } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
-import { Shell } from "@/components/shell";
-import { ThemeSync } from "@/components/theme-sync";
+import { LiveProvider } from "@/lib/live/engine";
+import { SignalRoot } from "@/components/signal/chrome";
 
-const inter = Inter({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
-const noto = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "600"], display: "swap" });
+const sans = Outfit({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
+const mono = IBM_Plex_Mono({ variable: "--font-mono", subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
+const cjk = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "700"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "ZOUDIAN — AI Mobility 2030",
-  description: "Design prototype: airport, P2P, hourly, taxi, rental, live trip, ops, admin.",
+  title: "Zoufeng Signal — Live Mobility OS",
+  description: "Live mobility OS: airport pickup, driver incidents, operations command, preferred drivers.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" className={`${inter.variable} ${noto.variable} h-full antialiased`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable} ${cjk.variable} h-full antialiased`}>
       <body className="min-h-full">
         <StoreProvider>
-          <ThemeSync />
-          <Shell>{children}</Shell>
+          <LiveProvider>
+            <SignalRoot>{children}</SignalRoot>
+          </LiveProvider>
         </StoreProvider>
       </body>
     </html>
