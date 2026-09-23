@@ -15,12 +15,12 @@ const ROADS = [
 ];
 
 const CARS = [
-  { path: 0, dur: "11s", delay: "0s", color: "#4ef2ff", driver: "d1" },
-  { path: 1, dur: "14s", delay: "-4s", color: "#ff4fd8", driver: "d2" },
-  { path: 2, dur: "12s", delay: "-7s", color: "#c8ff6a", driver: "d3" },
-  { path: 3, dur: "9s", delay: "-2s", color: "#b08cff", driver: "d4" },
-  { path: 4, dur: "16s", delay: "-9s", color: "#4ef2ff", driver: "d1" },
-  { path: 5, dur: "13s", delay: "-3s", color: "#ffb84e", driver: "d2" },
+  { path: 0, dur: "11s", delay: "0s", color: "#2f6bff", driver: "d1" },
+  { path: 1, dur: "14s", delay: "-4s", color: "#3ee0c8", driver: "d2" },
+  { path: 2, dur: "12s", delay: "-7s", color: "#2f6bff", driver: "d3" },
+  { path: 3, dur: "9s", delay: "-2s", color: "#4c8dff", driver: "d4" },
+  { path: 4, dur: "16s", delay: "-9s", color: "#3ee0c8", driver: "d1" },
+  { path: 5, dur: "13s", delay: "-3s", color: "#2f6bff", driver: "d2" },
 ];
 
 export function LiveMap({
@@ -43,16 +43,15 @@ export function LiveMap({
   const uid = useId().replace(/:/g, "");
   const focus = drivers.find((d) => d.id === focusDriverId) ?? drivers[0];
   return (
-    <div className="map-shell relative overflow-hidden rounded-[32px]" style={{ height }}>
-      <div className="map-glow" />
+    <div className="map-shell relative overflow-hidden rounded-[28px]" style={{ height }}>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid slice">
         <defs>
           {ROADS.map((d, i) => (
             <path key={i} id={`${uid}-road-${i}`} d={d} />
           ))}
           <linearGradient id="route" x1="0" x2="1">
-            <stop stopColor="#4ef2ff" />
-            <stop offset="1" stopColor="#ff4fd8" />
+            <stop stopColor="#2f6bff" />
+            <stop offset="1" stopColor="#3ee0c8" />
           </linearGradient>
           <filter id="soft">
             <feGaussianBlur stdDeviation="1.2" />
@@ -66,7 +65,7 @@ export function LiveMap({
             key={`c${i}`}
             d={d}
             fill="none"
-            stroke="rgba(78,242,255,0.35)"
+            stroke="rgba(47,107,255,0.35)"
             strokeWidth="1.4"
             strokeDasharray="6 10"
             className="dash-flow"
@@ -81,8 +80,8 @@ export function LiveMap({
             className="draw-route"
           />
         )}
-        <circle cx="92" cy="248" r="7" fill="#ff4fd8" />
-        <circle cx="412" cy="96" r="7" fill="#4ef2ff" />
+        <circle cx="92" cy="248" r="7" fill="#2f6bff" />
+        <circle cx="412" cy="96" r="7" fill="#3ee0c8" />
         {CARS.filter((c) => mode === "fleet" || c.driver === focus.id).map((c, i) => (
           <g key={i}>
             <circle r="7" fill={c.color} filter="url(#soft)">
@@ -102,33 +101,27 @@ export function LiveMap({
       </svg>
 
       <div className="absolute left-4 top-4 flex flex-col gap-2">
-        <span className="glass-chip">
+        <span className="elevated inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs">
           <span className="live-dot" />
           {mode === "fleet"
-            ? loc(locale, "Taipei live mesh · 18 units", "臺北即時網格 · 18 車")
+            ? loc(locale, "Taipei live · 18 units", "臺北即時 · 18 車")
             : loc(locale, "Live trip GPS", "即時行程 GPS")}
         </span>
-        {eta && <span className="glass-chip lime">{eta}</span>}
+        {eta && <span className="elevated rounded-xl px-3 py-2 text-xs">{eta}</span>}
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="driver-hud float">
+        <div className="elevated flex items-center gap-3 rounded-2xl px-3 py-3">
           <div className="avatar">{focus.photo}</div>
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-cyan-100/70">
-              {loc(locale, "Captain", "駕駛")} · {focus.plate}
-            </div>
+            <div className="label">{loc(locale, "Driver", "駕駛")} · {focus.plate}</div>
             <div className="display text-lg leading-tight">{focus.name}</div>
-            <div className="text-xs text-white/60">
-              ★ {focus.rating} · {focus.vehicle} · {focus.languages.join(" / ")}
-            </div>
+            <div className="text-xs text-[var(--muted)]">★ {focus.rating} · {focus.vehicle}</div>
           </div>
         </div>
-        <div className="glass-chip max-w-[240px] text-left">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">
-            {pickup || loc(locale, "Pickup → drop", "上車 → 下車")}
-          </div>
-          <div className="text-xs text-white/80">{dropoff || "Xinyi / Taipei 101"}</div>
+        <div className="elevated max-w-[240px] rounded-2xl px-3 py-3 text-left text-xs">
+          <div className="label">{pickup || loc(locale, "Pickup → drop", "上車 → 下車")}</div>
+          <div>{dropoff || "Taipei 101"}</div>
         </div>
       </div>
     </div>

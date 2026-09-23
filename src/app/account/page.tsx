@@ -3,108 +3,64 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { drivers } from "@/lib/data";
-import { loc, t } from "@/lib/i18n";
+import { loc } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { Btn, Field, Panel, Stat } from "@/components/ui";
+import { Btn, Field } from "@/components/ui";
 
 export default function AccountPage() {
-  const { user, logout, bookings, locale, lastDriverId, requestSwitch, switches } = useStore();
-  const d = t(locale);
+  const { user, logout, locale, lastDriverId, requestSwitch, switches } = useStore();
   const router = useRouter();
-  const [reason, setReason] = useState(
-    locale === "zh"
-      ? "希望更換車型／語言，請公司改派，我不直接聯絡其他司機。"
-      : "Need a different vehicle/language. Please reassign through the company — I will not contact another driver privately.",
-  );
-  const [sent, setSent] = useState("");
+  const [reason, setReason] = useState("Need a different vehicle. Please reassign through the company.");
   const last = drivers.find((x) => x.id === lastDriverId());
   const mine = switches.filter((s) => s.passengerId === (user?.id ?? "p1"));
 
   if (!user) {
     return (
-      <Panel>
-        <a className="text-cyan-200" href="/login">
-          {loc(locale, "Sign into Aether", "登入 Aether")}
-        </a>
-      </Panel>
+      <p>
+        <a className="underline" href="/login">{loc(locale, "Sign in", "登入")}</a>
+      </p>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="display text-4xl">{user.name}</h1>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Stat k={loc(locale, "Role", "角色")} v={user.role} />
-        <Stat k={loc(locale, "Points", "點數")} v={String(user.points)} />
-        <Stat k={loc(locale, "Trips in ledger", "帳本行程")} v={String(bookings.filter((b) => b.passengerId === user.id || user.role !== "passenger").length)} />
-      </div>
-
-      <Panel className="space-y-3">
-        <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">{d.lastCaptain}</div>
-        <p className="text-white/80">
-          {last ? `${last.name} · ${last.plate} · ${last.vehicle}` : "—"}
-        </p>
-        <p className="text-sm text-white/55">{d.switchPolicy}</p>
-        <p className="text-xs text-cyan-100/70">{d.maskedPhone}</p>
+    <div className="mx-auto max-w-xl space-y-10">
+      <header>
+        <div className="label">{loc(locale, "You", "我的")}</div>
+        <h1 className="display text-4xl">{user.name}</h1>
+        <p className="text-[var(--muted)]">{user.email} · {user.referralCode}</p>
+      </header>
+      <section className="space-y-3">
+        <h2 className="display text-2xl">{loc(locale, "Last driver", "上次司機")}</h2>
+        <p>{last ? `${last.name} · ${last.plate}` : "—"}</p>
+        <p className="text-sm text-[var(--muted)]">{loc(locale, "Change drivers only through the company.", "更換司機只能透過公司。")}</p>
+        <Field label={loc(locale, "Reason", "原因")}><input value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
         {last && (
-          <>
-            <Field label={loc(locale, "Reason for company switch", "公司代換原因")}>
-              <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-            </Field>
-            <Btn
-              onClick={() => {
-                const r = requestSwitch({
-                  fromDriverId: last.id,
-                  reason,
-                  reasonZh: reason,
-                });
-                setSent(r.id);
-              }}
-            >
-              {d.requestSwitch}
-            </Btn>
-            {sent && <p className="text-sm text-lime-300">{d.switchOpen} · {sent}</p>}
-          </>
-        )}
-        {mine.length > 0 && (
-          <div className="space-y-2 pt-2">
-            {mine.map((s) => (
-              <div key={s.id} className="text-sm text-white/55">
-                {s.id} · {s.status} · {locale === "zh" ? s.reasonZh : s.reason}
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      <Panel>
-        <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-          {loc(locale, "Cabin preferences", "座艙偏好")}
-        </div>
-        <p className="mt-2 text-white/70">
-          {loc(locale, "Wallet credits + invoice carrier ready. English name is never translated.", "折價金與發票載具可用。英文姓名永不翻譯。")}
-        </p>
-        <p className="mt-2 text-sm text-white/50">
-          {user.email} · {user.phone} · {user.referralCode}
-        </p>
-        <div className="mt-4 flex gap-3">
-          <Btn href="/wallet" kind="ghost">
-            {d.wallet}
-          </Btn>
-          <Btn href="/loyalty" kind="ghost">
-            RFM
-          </Btn>
           <Btn
             kind="ghost"
-            onClick={() => {
-              logout();
-              router.push("/");
-            }}
+            onClick={() => requestSwitch({ fromDriverId: last.id, reason, reasonZh: reason })}
           >
-            {loc(locale, "Exit", "登出")}
+            {loc(locale, "Request switch", "申請更換")}
           </Btn>
-        </div>
-      </Panel>
+        )}
+        {mine.map((s) => (
+          <p key={s.id} className="text-sm text-[var(--muted)]">{s.id} · {s.status}</p>
+        ))}
+      </section>
+      <nav className="grid gap-3 text-lg">
+        <a href="/wallet">{loc(locale, "Wallet", "錢包")}</a>
+        <a href="/loyalty">{loc(locale, "Loyalty", "會員")}</a>
+        <a href="/help">{loc(locale, "Help", "客服")}</a>
+        <a href="/design">{loc(locale, "Design system", "設計系統")}</a>
+      </nav>
+      <Btn
+        kind="ghost"
+        onClick={() => {
+          logout();
+          router.push("/");
+        }}
+      >
+        {loc(locale, "Sign out", "登出")}
+      </Btn>
     </div>
   );
 }

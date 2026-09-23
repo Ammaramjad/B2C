@@ -1,22 +1,31 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-export function Chip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-cyan-100/80">
-      {children}
-    </span>
-  );
+export function Label({ children }: { children: ReactNode }) {
+  return <div className="label">{children}</div>;
 }
 
-export function Panel({
+export function Surface({
   children,
   className = "",
+  as: Tag = "div",
 }: {
   children: ReactNode;
   className?: string;
+  as?: "div" | "section" | "aside";
 }) {
-  return <div className={`glass rounded-[28px] p-5 md:p-6 ${className}`}>{children}</div>;
+  return <Tag className={`surface rounded-[20px] p-5 md:p-6 ${className}`}>{children}</Tag>;
+}
+
+/** @deprecated use Surface — kept for leftover screens */
+export const Panel = Surface;
+
+export function Chip({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "ai" | "live" }) {
+  const t =
+    tone === "ai" || tone === "live"
+      ? "bg-[color-mix(in_srgb,var(--ai)_14%,transparent)] text-[var(--ai)]"
+      : "bg-[color-mix(in_srgb,var(--muted)_12%,transparent)] text-[var(--muted)]";
+  return <span className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium ${t}`}>{children}</span>;
 }
 
 export function Btn({
@@ -26,21 +35,23 @@ export function Btn({
   kind = "primary",
   type = "button",
   className = "",
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
   href?: string;
-  kind?: "primary" | "ghost" | "danger";
+  kind?: "primary" | "ghost" | "danger" | "ai";
   type?: "button" | "submit";
   className?: string;
+  disabled?: boolean;
 }) {
   const styles = {
-    primary:
-      "bg-[linear-gradient(120deg,#4ef2ff,#b08cff_55%,#ff4fd8)] text-[#070014] shadow-[0_10px_40px_rgba(78,242,255,0.25)]",
-    ghost: "border border-white/15 bg-white/5 text-white hover:bg-white/10",
-    danger: "border border-rose-400/40 bg-rose-500/15 text-rose-100",
+    primary: "bg-[var(--primary)] text-[var(--primary-ink)]",
+    ghost: "bg-transparent text-[var(--fg)] hairline",
+    danger: "bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] text-[var(--danger)]",
+    ai: "bg-[color-mix(in_srgb,var(--ai)_16%,transparent)] text-[var(--ai)]",
   }[kind];
-  const cls = `inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition hover:scale-[1.02] active:scale-[0.99] ${styles} ${className}`;
+  const cls = `focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[16px] font-semibold transition disabled:opacity-40 ${styles} ${className}`;
   if (href) {
     return (
       <Link className={cls} href={href} onClick={onClick}>
@@ -49,22 +60,16 @@ export function Btn({
     );
   }
   return (
-    <button type={type} className={cls} onClick={onClick}>
+    <button type={type} className={cls} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
 }
 
-export function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-2">
-      <span className="text-[11px] uppercase tracking-[0.2em] text-white/45">{label}</span>
+      <span className="label">{label}</span>
       {children}
     </label>
   );
@@ -72,10 +77,25 @@ export function Field({
 
 export function Stat({ k, v, d }: { k: string; v: string; d?: string }) {
   return (
-    <div className="glass rise rounded-2xl p-4">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">{k}</div>
-      <div className="display mt-1 text-2xl">{v}</div>
-      {d && <div className="mt-1 text-xs text-lime-300/80">{d}</div>}
+    <div className="rise min-w-0">
+      <div className="label">{k}</div>
+      <div className="display metric mt-1 text-2xl md:text-3xl">{v}</div>
+      {d && <div className="mt-1 text-xs text-[var(--muted)]">{d}</div>}
+    </div>
+  );
+}
+
+export function Status({ kind, children }: { kind: string; children: ReactNode }) {
+  const k = ["live", "active", "assigned", "completed", "cancelled"].includes(kind) ? kind : "";
+  return <span className={`status ${k}`}>{children}</span>;
+}
+
+export function Empty({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
+  return (
+    <div className="py-16 text-center">
+      <h2 className="display text-2xl">{title}</h2>
+      <p className="mx-auto mt-2 max-w-md text-[var(--muted)]">{body}</p>
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
