@@ -1,75 +1,98 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { drivers } from "@/lib/data";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
-import { LiveMap } from "@/components/live-map";
-import { Btn, Chip, Status } from "@/components/ui";
+import { Btn, Chip } from "@/components/ui";
 
-export default function OpsPage() {
-  const { user, login, locale, currency, bookings, assignDriver, switches, tickets } = useStore();
-  const [sel, setSel] = useState(bookings.find((b) => !b.driverId || b.status === "new")?.id ?? bookings[0]?.id);
-  const live = bookings.filter((b) => ["assigned", "accepted", "arriving", "onboard"].includes(b.status));
-  const unassigned = bookings.filter((b) => !b.driverId && b.status !== "cancelled" && b.status !== "completed");
-  const b = useMemo(() => bookings.find((x) => x.id === sel), [bookings, sel]);
-  const zh = locale === "zh";
+export default function DispatchBoardPage() {
+  const { user, login, locale, currency, bookings, assignDriver } = useStore();
+  const [over, setOver] = useState<string | null>(null);
+  const unassigned = bookings.filter((b) => !b.driverId && !["cancelled", "completed"].includes(b.status));
+  const online = drivers.filter((d) => d.status === "approved");
 
-  if (!user || (user.role !== "ops" && user.role !== "dispatcher")) {
+  if (!user || !["ops", "dispatcher", "fleet_manager"].includes(user.role)) {
     return (
       <div className="space-y-3 py-10">
-        <h1 className="display text-3xl">{loc(locale, "Operations", "調度")}</h1>
-        <Btn onClick={() => login("desk@zoudian.travel", "dispatcher")}>Dispatcher</Btn>
+        <h1 className="display text-3xl">{loc(locale, "Dispatch board", "派遣看板")}</h1>
+        <Btn onClick={() => login("desk@zoudian.travel", "dispatcher")}>Rico Tan</Btn>
       </div>
     );
   }
 
+  function dropOn(driverId: string, e: React.DragEvent) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/booking-id");
+    if (id) assignDriver(id, driverId);
+    setOver(null);
+  }
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="display text-3xl">{loc(locale, "Control center", "指揮中心")}</h1>
-          <Chip tone="live">{live.length} live</Chip>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="label">{loc(locale, "Staff · drag a booking onto a driver", "內部 · 把訂單拖到司機")}</div>
+          <h1 className="display text-3xl">{loc(locale, "Dispatch board", "派遣看板")}</h1>
         </div>
-        <LiveMap locale={locale} mode="fleet" height={480} pickup={zh ? "全市" : "City"} dropoff={`${unassigned.length} waiting`} />
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="text-[var(--danger)]">CRITICAL · SOS {tickets.filter((t) => t.status !== "resolved").length}</span>
-          <span className="text-[var(--warning)]">ATTENTION · {unassigned.length} unassigned</span>
-          <span className="text-[var(--muted)]">INFO · {switches.filter((s) => s.status === "open").length} switch</span>
-        </div>
+        <Chip tone="live">{unassigned.length} {loc(locale, "waiting", "待指派")}</Chip>
       </div>
-      <aside className="space-y-4">
-        <div className="label">{loc(locale, "Queue", "佇列")}</div>
-        <div className="max-h-40 space-y-2 overflow-auto text-sm">
-          {bookings.slice(0, 12).map((row) => (
-            <button key={row.id} onClick={() => setSel(row.id)} className={`block w-full text-left ${row.id === sel ? "" : "text-[var(--muted)]"}`}>
-              {row.id} · {row.status}
-            </button>
-          ))}
-        </div>
-        {b && (
-          <div className="space-y-3">
-            <Status kind={b.status}>{b.status}</Status>
-            <div className="display text-xl">{b.pickup} → {b.dropoff}</div>
-            <p className="text-sm text-[var(--muted)]">{b.passengerName} · {money(convert(b.price, currency), currency)}</p>
-            <div className="label">{loc(locale, "Recommended", "建議")}</div>
-            {drivers
-              .filter((d) => d.status === "approved")
-              .slice()
-              .sort((a, c) => (a.fleet === "A" ? 0 : 1) - (c.fleet === "A" ? 0 : 1))
-              .map((d, i) => (
-                <button key={d.id} onClick={() => assignDriver(b.id, d.id)} className="flex w-full items-center justify-between text-left">
-                  <span>
-                    {d.name}
-                    {i === 0 && <Chip tone="ai">AI</Chip>}
-                  </span>
-                  <span className="text-xs text-[var(--muted)]">fleet {d.fleet} · {d.work}</span>
-                </button>
-              ))}
+      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+        <section className="elevated rounded-2xl p-4">
+          <div className="label mb-3">{loc(locale, "Unassigned", "未指派")}</div>
+          <div className="space-y-2">
+            {unassigned.map((b) => (
+              <article
+                key={b.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/booking-id", b.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                className="cursor-grab rounded-xl hairline p-3 active:cursor-grabbing"
+              >
+                <div className="text-sm font-semibold">{b.id}</div>
+                <div>{b.pickup} → {b.dropoff}</div>
+                <div className="text-xs text-[var(--muted)]">{b.passengerName} · {money(convert(b.price, currency), currency)}</div>
+              </article>
+            ))}
+            {unassigned.length === 0 && <p className="text-sm text-[var(--muted)]">{loc(locale, "Queue empty.", "佇列是空的。")}</p>}
           </div>
-        )}
-      </aside>
+        </section>
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {online.map((d) => {
+            const jobs = bookings.filter((b) => b.driverId === d.id && !["completed", "cancelled"].includes(b.status));
+            return (
+              <div
+                key={d.id}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setOver(d.id);
+                }}
+                onDragLeave={() => setOver((x) => (x === d.id ? null : x))}
+                onDrop={(e) => dropOn(d.id, e)}
+                className={`elevated min-h-40 rounded-2xl p-4 ${over === d.id ? "ring-2 ring-[var(--primary)]" : ""}`}
+              >
+                <div className="flex justify-between gap-2">
+                  <div>
+                    <div className="font-semibold">{d.name}</div>
+                    <div className="text-xs text-[var(--muted)]">fleet {d.fleet} · {d.work} · {d.plate}</div>
+                  </div>
+                  <span className="text-xs">{jobs.length}</span>
+                </div>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {jobs.map((b) => (
+                    <li key={b.id} className="hairline rounded-lg px-2 py-1">
+                      {b.id} · {b.status}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </section>
+      </div>
     </div>
   );
 }
