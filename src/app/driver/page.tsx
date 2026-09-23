@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { drivers, seedSettlements } from "@/lib/data";
+import { useEffect, useState } from "react";
+import { drivers } from "@/lib/data";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
@@ -10,150 +10,85 @@ import { LiveMap } from "@/components/live-map";
 import { Btn, Panel, Stat } from "@/components/ui";
 
 export default function DriverPage() {
-  const { user, login, bookings, advance, currency, locale, settlements } = useStore();
+  const { user, login, bookings, advance, grab, currency, locale, settlements } = useStore();
   const me = drivers[0];
-  const [online, setOnline] = useState(true);
+  const [work, setWork] = useState(me.work);
+  const [tick, setTick] = useState(0);
   const zh = locale === "zh";
   const mine = bookings.filter((b) => b.driverId === me.id);
-  const incoming = mine.filter((b) => ["confirmed", "assigned"].includes(b.status));
-  const active = mine.filter((b) => ["en_route", "arrived", "in_progress"].includes(b.status));
-  const done = mine.filter((b) => b.status === "completed");
-  const week = settlements.length ? settlements : seedSettlements;
-  const mySettle = week.filter((s) => s.driverId === me.id);
+  const pool = bookings.filter((b) => b.status === "new" || (!b.driverId && b.status === "payment_confirmed"));
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 4000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!user || user.role !== "driver") {
     return (
-      <Panel className="space-y-4">
-        <h1 className="display text-3xl">{loc(locale, "Driver gate", "司機入口")}</h1>
-        <Btn onClick={() => login("kenji@zoufeng.travel", "driver")}>
-          {loc(locale, "Enter as Kenji Mori", "以森 健司進入")}
-        </Btn>
+      <Panel className="space-y-3">
+        <h1 className="display text-3xl">{loc(locale, "Driver side", "司機端")}</h1>
+        <Btn onClick={() => login("kenji@zoudian.travel", "driver")}>Kenji Mori</Btn>
       </Panel>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/70">
-            {loc(locale, "Driver dashboard", "司機儀表板")}
-          </div>
-          <h1 className="display text-4xl">{zh ? me.nameZh : me.name}</h1>
-          <p className="text-sm text-white/50">
-            {me.plate} · {me.vehicle} · ★ {me.rating} · {me.trips} {loc(locale, "lifetime rides", "歷史趟次")}
-          </p>
+          <div className="text-[11px] uppercase text-cyan-200/70">{loc(locale, "Driver console", "司機後台")}</div>
+          <h1 className="display text-4xl">{me.name}</h1>
+          <p className="text-sm text-white/50">{me.plate} · {me.vehicle} · fleet {me.fleet} · ★ {me.rating}</p>
         </div>
-        <Btn kind={online ? "primary" : "ghost"} onClick={() => setOnline((v) => !v)}>
-          {online ? loc(locale, "Online · receiving", "上線 · 接單中") : loc(locale, "Offline", "離線")}
-        </Btn>
-      </div>
-
-      <LiveMap
-        locale={locale}
-        mode="nav"
-        height={380}
-        focusDriverId={me.id}
-        pickup={loc(locale, "Your live nav", "即時導航")}
-        dropoff={active[0] ? (zh ? active[0].dropoffZh : active[0].dropoff) : loc(locale, "Awaiting job", "等待任務")}
-        eta={online ? loc(locale, "Receiving · GPS locked", "接單中 · GPS 鎖定") : loc(locale, "Offline", "離線")}
-      />
-
-      <Panel className="neon">
-        <AreaChart
-          label={loc(locale, "7-day earnings pulse", "7 日收入曲線")}
-          values={[4.1, 5.2, 4.8, 6.1, 5.6, 6.8, 6.2]}
-        />
-      </Panel>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat k={loc(locale, "Today earned", "今日收入")} v={money(convert(me.earningsToday, currency), currency)} />
-        <Stat
-          k={loc(locale, "Week earned", "本週收入")}
-          v={money(convert(me.earningsWeek, currency), currency)}
-          d={`${me.completedWeek} ${loc(locale, "rides", "趟")} · ${me.cancelledWeek} ${loc(locale, "cancel", "取消")}`}
-        />
-        <Stat k={loc(locale, "Month", "本月")} v={money(convert(me.earningsMonth, currency), currency)} />
-        <Stat
-          k={loc(locale, "Pending payout", "待撥款")}
-          v={money(convert(me.pendingPayout, currency), currency)}
-          d={loc(locale, "Weekly settlement", "週結")}
-        />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-4">
-        <Stat k={loc(locale, "Inbound now", "待接")} v={String(incoming.length)} />
-        <Stat k={loc(locale, "Active", "進行中")} v={String(active.length)} />
-        <Stat k={loc(locale, "Completed in ledger", "帳本完成")} v={String(done.length)} />
-        <Stat k={loc(locale, "YTD", "今年")} v={money(convert(me.earningsYtd, currency), currency)} />
-      </div>
-
-      <Panel>
-        <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-          {loc(locale, "Accept / empty miles / commission", "接單／空駛／抽成")}
+        <div className="flex gap-2">
+          {(["available", "busy", "offline"] as const).map((w) => (
+            <Btn key={w} kind={work === w ? "primary" : "ghost"} onClick={() => setWork(w)}>
+              {w}
+            </Btn>
+          ))}
         </div>
-        <div className="mt-2 grid gap-2 text-sm text-white/65 md:grid-cols-3">
-          <div>{loc(locale, "Accept rate", "接單率")} {(me.acceptRate * 100).toFixed(0)}%</div>
-          <div>{loc(locale, "Empty km this week", "本週空駛")} {me.emptyKmWeek} km</div>
-          <div>{loc(locale, "Company commission", "公司抽成")} {(me.commissionRate * 100).toFixed(0)}%</div>
-        </div>
-      </Panel>
-
-      <section className="space-y-3">
-        <h2 className="display text-2xl">{loc(locale, "Jobs", "任務")}</h2>
-        {mine.length === 0 && <Panel>{loc(locale, "No jobs in ledger.", "帳本尚無任務。")}</Panel>}
+      </div>
+      <LiveMap locale={locale} mode="nav" height={360} focusDriverId={me.id} pickup={loc(locale, "In-app nav", "導航")} dropoff={mine[0]?.dropoff} eta={`${work} · tick ${tick}`} />
+      <Panel className="neon"><AreaChart label={zh ? "本週收入" : "Week earnings"} values={[4.2, 5.1, 6.2, 5.8, 6.8, 7.1, 6.2]} /></Panel>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat k={zh ? "今日" : "Today"} v={money(convert(me.earningsToday, currency), currency)} />
+        <Stat k={zh ? "本週" : "Week"} v={money(convert(me.earningsWeek, currency), currency)} />
+        <Stat k={zh ? "待撥" : "Payout"} v={money(convert(me.pendingPayout, currency), currency)} />
+        <Stat k={zh ? "完成趟" : "Done"} v={String(mine.filter((b) => b.status === "completed").length)} />
+      </div>
+      <section>
+        <h2 className="display text-2xl">{loc(locale, "Grab pool · 4s refresh", "搶單池 · 4 秒刷新")}</h2>
+        {pool.map((b) => (
+          <Panel key={b.id} className="mt-3 flex justify-between">
+            <div>
+              <div className="text-xs text-white/40">{b.id} · {b.service} · {b.status}</div>
+              <div className="display text-xl">{b.pickup} → {b.dropoff}</div>
+            </div>
+            <Btn onClick={() => grab(b.id, me.id)}>{zh ? "搶單" : "Grab"}</Btn>
+          </Panel>
+        ))}
+      </section>
+      <section>
+        <h2 className="display text-2xl">{loc(locale, "My jobs", "我的任務")}</h2>
         {mine.map((b) => (
-          <Panel key={b.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Panel key={b.id} className="mt-3 flex justify-between">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/40">
-                {b.id} · {b.status} · OTP {b.otp}
-              </div>
-              <div className="display text-xl">
-                {zh ? b.pickupZh : b.pickup} → {zh ? b.dropoffZh : b.dropoff}
-              </div>
-              <div className="text-sm text-white/50">
-                {b.when.replace("T", " · ")} · {loc(locale, "gross", "總額")} {money(convert(b.price, currency), currency)} ·{" "}
-                {loc(locale, "your net", "你的淨收")} {money(convert(b.driverNet, currency), currency)}
-              </div>
+              <div className="text-xs text-white/40">{b.id} · {b.status} · OTP {b.otp}</div>
+              <div className="display text-xl">{b.pickup} → {b.dropoff}</div>
+              <div className="text-sm text-white/50">{money(convert(b.driverNet, currency), currency)} net</div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Btn kind="ghost" href={`https://maps.google.com/?q=${encodeURIComponent(b.dropoff)}`}>
-                {loc(locale, "Navigate", "導航")}
-              </Btn>
-              {b.status !== "completed" && b.status !== "cancelled" && (
-                <Btn onClick={() => advance(b.id)}>{loc(locale, "Accept / next", "接單／下一步")}</Btn>
-              )}
-            </div>
+            {b.status !== "completed" && b.status !== "cancelled" && (
+              <Btn onClick={() => advance(b.id)}>{zh ? "下一狀態" : "Next status"}</Btn>
+            )}
           </Panel>
         ))}
       </section>
-
-      <section className="space-y-3">
-        <h2 className="display text-2xl">{loc(locale, "Weekly statements", "週結單")}</h2>
-        {mySettle.map((s) => (
-          <Panel key={s.id} className="flex justify-between">
-            <div>
-              <div className="display text-xl">{s.week}</div>
-              <div className="text-sm text-white/50">
-                {s.rides} {loc(locale, "rides", "趟")} · {s.status}
-              </div>
-            </div>
-            <div className="text-right text-sm">
-              <div>
-                {loc(locale, "Gross", "總額")} {money(convert(s.gross, currency), currency)}
-              </div>
-              <div>
-                {loc(locale, "Fee", "抽成")} {money(convert(s.commission, currency), currency)}
-              </div>
-              <div className="display text-lg">{money(convert(s.net, currency), currency)}</div>
-            </div>
-          </Panel>
-        ))}
-      </section>
-
-      <a href="/" className="text-sm text-cyan-200">
-        ← {loc(locale, "Passenger app", "乘客端")}
-      </a>
+      {settlements.filter((s) => s.driverId === me.id).map((s) => (
+        <Panel key={s.id} className="flex justify-between">
+          <span>{s.week} · {s.rides} · {s.status}</span>
+          <span>{money(convert(s.net, currency), currency)}</span>
+        </Panel>
+      ))}
     </div>
   );
 }

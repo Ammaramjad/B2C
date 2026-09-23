@@ -16,9 +16,8 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "ZOUFENG AETHER — International Mobility OS",
-  description:
-    "Futuristic B2C mobility and travel-dispatch platform: airport transfers, charter, taxi, AI itineraries, live safety.",
+  title: "走癲派車 ZOUDIAN — B2C",
+  description: "台灣派車 B2C：6 服務、透明 NT$、繁中／英文、即時地圖。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

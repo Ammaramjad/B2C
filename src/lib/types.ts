@@ -1,63 +1,101 @@
 export type Locale = "en" | "zh";
 export type Currency = "TWD" | "USD";
-export type Role = "guest" | "passenger" | "driver" | "ops";
+export type Role = "guest" | "passenger" | "driver" | "ops" | "dispatcher";
 
 export type ServiceType =
-  | "airport"
-  | "point"
-  | "charter"
-  | "taxi"
+  | "airport_pickup"
+  | "airport_drop"
+  | "p2p"
+  | "hourly"
   | "rental"
-  | "designated"
-  | "experience";
+  | "instant";
 
 export type BookingStatus =
-  | "draft"
-  | "confirmed"
+  | "payment_pending"
+  | "payment_confirmed"
+  | "new"
   | "assigned"
-  | "en_route"
-  | "arrived"
-  | "in_progress"
+  | "accepted"
+  | "arriving"
+  | "onboard"
   | "completed"
   | "cancelled";
 
-export type VehicleClass = "sedan" | "business" | "mpv" | "van" | "ev";
-
+export type VehicleClass = "sedan" | "premium" | "suv" | "mpv" | "van" | "shuttle";
+export type TaxiClass = "taxi" | "plus" | "xl" | "black";
+export type RentalClass = "yaris" | "cross" | "sienta";
+export type ExtraId = "meet" | "child_seat" | "english" | "pet" | "one_way_rental" | "insurance";
+export type Channel = "web" | "app" | "dispatch" | "taxi" | "hourly" | "rental";
+export type FilterId = "instant" | "ev" | "prem" | "wheel" | "meet";
+export type SortId = "price" | "phigh" | "rate" | "pop";
 export type SwitchStatus = "open" | "approved" | "declined";
 export type TicketStatus = "open" | "l2" | "resolved";
-export type DriverStatus = "approved" | "pending" | "suspended";
+export type DriverWork = "available" | "busy" | "offline";
+export type FleetTier = "A" | "B" | "C";
 
 export interface Vehicle {
   id: VehicleClass;
   name: string;
+  nameZh: string;
+  model: string;
   seats: number;
   luggage: number;
-  tag: string;
-  tagZh: string;
-  multiplier: number;
+  base: number;
+  ev?: boolean;
+  wheel?: boolean;
+  meet?: boolean;
+}
+
+export interface Taxi {
+  id: TaxiClass;
+  name: string;
+  nameZh: string;
+  eta: number;
+  base: number;
+}
+
+export interface RentalCar {
+  id: RentalClass;
+  name: string;
+  nameZh: string;
+  seats: number;
+  day: number;
+}
+
+export interface Extra {
+  id: ExtraId;
+  name: string;
+  nameZh: string;
+  price: number;
+  only?: ServiceType[];
+}
+
+export interface LineItem {
+  label: string;
+  labelZh: string;
+  amount: number;
 }
 
 export interface Driver {
   id: string;
   name: string;
-  nameZh: string;
   rating: number;
   trips: number;
   vehicle: string;
+  vehicleClass: VehicleClass;
   plate: string;
   city: string;
-  online: boolean;
+  work: DriverWork;
   languages: string[];
   photo: string;
   phone: string;
   license: string;
-  fleet: "owned" | "franchise" | "partner";
-  status: DriverStatus;
+  fleet: FleetTier;
+  fuel: "petrol" | "hybrid" | "diesel" | "electric";
+  vehicleState: "active" | "maintenance";
+  status: "approved" | "pending" | "suspended";
   joined: string;
   acceptRate: number;
-  rejectRate: number;
-  emptyKmWeek: number;
-  commissionRate: number;
   earningsToday: number;
   earningsWeek: number;
   earningsMonth: number;
@@ -65,62 +103,21 @@ export interface Driver {
   pendingPayout: number;
   completedWeek: number;
   cancelledWeek: number;
+  emptyKmWeek: number;
+  commissionRate: number;
 }
 
 export interface PassengerProfile {
   id: string;
   name: string;
-  nameZh: string;
   email: string;
   phone: string;
   city: string;
   lastDriverId?: string;
-  lastContactAt?: string;
   points: number;
   rfm: "champion" | "loyal" | "new" | "risk";
   trips: number;
   spendTwd: number;
-  prefs: { quiet: boolean; ac: number; vehicle: VehicleClass };
-}
-
-export interface Destination {
-  id: string;
-  city: string;
-  cityZh: string;
-  country: string;
-  countryZh: string;
-  tag: string;
-  tagZh: string;
-  image: string;
-  routes: number;
-  from: number;
-}
-
-export interface Experience {
-  id: string;
-  title: string;
-  titleZh: string;
-  city: string;
-  hours: number;
-  price: number;
-  rating: number;
-  image: string;
-  category: string;
-}
-
-export interface Attraction {
-  id: string;
-  name: string;
-  nameZh: string;
-  hours: number;
-  cost: number;
-  city: string;
-}
-
-export interface LineItem {
-  label: string;
-  labelZh: string;
-  amount: number;
 }
 
 export interface Booking {
@@ -132,14 +129,15 @@ export interface Booking {
   dropoff: string;
   dropoffZh: string;
   when: string;
-  vehicle: VehicleClass;
+  vehicle: VehicleClass | TaxiClass | RentalClass;
   passengers: number;
   luggage: number;
+  extras: ExtraId[];
+  promo?: string;
   flight?: string;
-  flightEta?: string;
   hours?: number;
+  days?: number;
   driverId?: string;
-  preferredDriver?: boolean;
   passengerId: string;
   otp: string;
   price: number;
@@ -148,10 +146,10 @@ export interface Booking {
   createdAt: string;
   passengerName: string;
   passengerPhone: string;
-  notes?: string;
   commission: number;
   driverNet: number;
-  channel: "app" | "ops" | "referral";
+  channel: Channel;
+  payment: "card" | "line" | "apple" | "cash";
 }
 
 export interface SwitchRequest {
@@ -172,9 +170,9 @@ export interface Ticket {
   id: string;
   passengerId: string;
   bookingId?: string;
-  level: "L1" | "L2" | "L3";
-  topic: string;
-  topicZh: string;
+  category: string;
+  categoryZh: string;
+  message: string;
   status: TicketStatus;
   createdAt: string;
 }
@@ -200,15 +198,29 @@ export interface User {
   wallet: Record<Currency, number>;
   referralCode: string;
   lastDriverId?: string;
-  prefs: {
-    quiet: boolean;
-    ac: number;
-    vehicle: VehicleClass;
-  };
 }
 
 export interface Message {
   id: string;
   role: "user" | "agent";
   text: string;
+}
+
+export interface Destination {
+  id: string;
+  city: string;
+  cityZh: string;
+  tag: string;
+  tagZh: string;
+  image: string;
+  from: number;
+}
+
+export interface Attraction {
+  id: string;
+  name: string;
+  nameZh: string;
+  hours: number;
+  cost: number;
+  city: string;
 }

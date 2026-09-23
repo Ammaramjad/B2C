@@ -42,7 +42,7 @@ export default function AccountPage() {
       <Panel className="space-y-3">
         <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">{d.lastCaptain}</div>
         <p className="text-white/80">
-          {last ? `${locale === "zh" ? last.nameZh : last.name} · ${last.plate} · ${last.vehicle}` : "—"}
+          {last ? `${last.name} · ${last.plate} · ${last.vehicle}` : "—"}
         </p>
         <p className="text-sm text-white/55">{d.switchPolicy}</p>
         <p className="text-xs text-cyan-100/70">{d.maskedPhone}</p>
@@ -82,7 +82,7 @@ export default function AccountPage() {
           {loc(locale, "Cabin preferences", "座艙偏好")}
         </div>
         <p className="mt-2 text-white/70">
-          {loc(locale, "Quiet ride", "安靜行程")} {user.prefs.quiet ? "on" : "off"} · AC {user.prefs.ac}°C · {user.prefs.vehicle}
+          {loc(locale, "Wallet credits + invoice carrier ready. English name is never translated.", "折價金與發票載具可用。英文姓名永不翻譯。")}
         </p>
         <p className="mt-2 text-sm text-white/50">
           {user.email} · {user.phone} · {user.referralCode}

@@ -42,8 +42,6 @@ export function LiveMap({
 }) {
   const uid = useId().replace(/:/g, "");
   const focus = drivers.find((d) => d.id === focusDriverId) ?? drivers[0];
-  const zh = locale === "zh";
-
   return (
     <div className="map-shell relative overflow-hidden rounded-[32px]" style={{ height }}>
       <div className="map-glow" />
@@ -120,7 +118,7 @@ export function LiveMap({
             <div className="text-[10px] uppercase tracking-[0.2em] text-cyan-100/70">
               {loc(locale, "Captain", "駕駛")} · {focus.plate}
             </div>
-            <div className="display text-lg leading-tight">{zh ? focus.nameZh : focus.name}</div>
+            <div className="display text-lg leading-tight">{focus.name}</div>
             <div className="text-xs text-white/60">
               ★ {focus.rating} · {focus.vehicle} · {focus.languages.join(" / ")}
             </div>

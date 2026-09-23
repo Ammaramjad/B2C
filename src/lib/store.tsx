@@ -1,27 +1,16 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import {
-  drivers,
-  passengers,
-  seedBookings,
-  seedSettlements,
-  seedSwitches,
-  seedTickets,
-} from "./data";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { extras as extraCat } from "./catalog";
+import { drivers, passengers, seedBookings, seedSettlements, seedSwitches, seedTickets } from "./data";
 import { loc } from "./i18n";
 import { cancelFee, COMMISSION, quote } from "./pricing";
 import type {
   Booking,
   BookingStatus,
+  Channel,
   Currency,
+  ExtraId,
   Locale,
   Message,
   Role,
@@ -31,37 +20,27 @@ import type {
   SwitchStatus,
   Ticket,
   User,
-  VehicleClass,
 } from "./types";
 
-const KEY = "zoufeng-aether-v2";
-
-const demoUser = (role: Role, name: string, email: string): User => ({
-  id: role === "passenger" ? "p1" : role === "driver" ? "d1" : "ops",
-  name,
-  email,
-  phone: "+886 900 880 101",
-  role,
-  points: 4280,
-  wallet: { TWD: 12600, USD: 240 },
-  referralCode: "AETHER-88K",
-  lastDriverId: role === "passenger" ? "d1" : undefined,
-  prefs: { quiet: true, ac: 22, vehicle: "business" },
-});
+const KEY = "zoudian-v10-web";
 
 interface Draft {
   service: ServiceType;
   pickup: string;
   dropoff: string;
   when: string;
-  vehicle: VehicleClass;
+  vehicle: string;
   passengers: number;
   luggage: number;
+  extras: ExtraId[];
+  promo: string;
   flight: string;
   hours: number;
-  driverMode: "company" | "same";
+  days: number;
+  payment: Booking["payment"];
   name: string;
   phone: string;
+  channel: Channel;
 }
 
 interface Store {
@@ -79,47 +58,44 @@ interface Store {
   advance: (id: string, status?: BookingStatus) => void;
   cancel: (id: string) => void;
   assignDriver: (id: string, driverId: string) => void;
+  grab: (id: string, driverId: string) => void;
   switches: SwitchRequest[];
   requestSwitch: (opts: { bookingId?: string; fromDriverId: string; reason: string; reasonZh: string }) => SwitchRequest;
-  decideSwitch: (id: string, status: SwitchStatus, toDriverId?: string, note?: string) => void;
+  decideSwitch: (id: string, status: SwitchStatus, toDriverId?: string) => void;
   tickets: Ticket[];
   settlements: Settlement[];
   messages: Message[];
   askHalo: (text: string) => void;
-  itinerary: string[];
-  setItinerary: (ids: string[]) => void;
-  planFromPrompt: (prompt: string) => void;
+  recent: string[];
+  pushRecent: (q: string) => void;
   lastDriverId: (passengerId?: string) => string | undefined;
+  cancelMidPct: number;
+  setCancelMidPct: (n: number) => void;
 }
 
 const defaultDraft: Draft = {
-  service: "airport",
-  pickup: "TPE Terminal 1 Arrivals",
-  dropoff: "Xinyi / Taipei 101",
+  service: "airport_pickup",
+  pickup: "TPE T1 Arrivals",
+  dropoff: "Taipei 101",
   when: "",
-  vehicle: "business",
+  vehicle: "sedan",
   passengers: 2,
   luggage: 2,
+  extras: ["meet"],
+  promo: "",
   flight: "CI101",
   hours: 8,
-  driverMode: "company",
+  days: 2,
+  payment: "card",
   name: "Amara Chen",
   phone: "+886 900 880 101",
+  channel: "web",
 };
 
 const Ctx = createContext<Store | null>(null);
 
-function load() {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("zh");
   const [currency, setCurrency] = useState<Currency>("TWD");
   const [user, setUser] = useState<User | null>(null);
   const [draft, setDraftState] = useState<Draft>(defaultDraft);
@@ -128,43 +104,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tickets] = useState<Ticket[]>(seedTickets);
   const [settlements] = useState<Settlement[]>(seedSettlements);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "m0",
-      role: "agent",
-      text: "Halo / 光環 online. Quotes, cancellation tiers, flights, or company driver-switch policy.",
-    },
+    { id: "m0", role: "agent", text: "走癲派車 24h FAQ · price / modify / cancel / complaint. 英文姓名不翻譯。" },
   ]);
-  const [itinerary, setItinerary] = useState<string[]>(["a5", "a2", "a3"]);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [cancelMidPct, setCancelMidPct] = useState(0.5);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const s = load();
-    if (s) {
-      setLocale(s.locale === "zh" ? "zh" : "en");
-      setCurrency(s.currency === "USD" ? "USD" : "TWD");
-      setUser(s.user ?? null);
-      setDraftState({ ...defaultDraft, ...s.draft, driverMode: s.draft?.driverMode ?? "company" });
-      if (Array.isArray(s.bookings) && s.bookings.length >= seedBookings.length) setBookings(s.bookings);
-      if (Array.isArray(s.switches)) setSwitches(s.switches);
-      setItinerary(s.itinerary ?? ["a5", "a2", "a3"]);
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (s) {
+        setLocale(s.locale === "en" ? "en" : "zh");
+        setCurrency(s.currency === "USD" ? "USD" : "TWD");
+        setUser(s.user ?? null);
+        setDraftState({ ...defaultDraft, ...s.draft });
+        if (Array.isArray(s.bookings) && s.bookings[0]?.id?.startsWith("ZD-")) setBookings(s.bookings);
+        if (Array.isArray(s.switches)) setSwitches(s.switches);
+        if (Array.isArray(s.recent)) setRecent(s.recent);
+        if (typeof s.cancelMidPct === "number") setCancelMidPct(s.cancelMidPct);
+      }
+    } catch {
+      /* ignore */
     }
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({ locale, currency, user, draft, bookings, switches, itinerary }),
-    );
-  }, [locale, currency, user, draft, bookings, switches, itinerary, hydrated]);
+    localStorage.setItem(KEY, JSON.stringify({ locale, currency, user, draft, bookings, switches, recent, cancelMidPct }));
+  }, [locale, currency, user, draft, bookings, switches, recent, cancelMidPct, hydrated]);
 
   const lastDriverId = (passengerId?: string) => {
     const pid = passengerId ?? user?.id ?? "p1";
-    const fromUser = user?.id === pid ? user.lastDriverId : undefined;
-    const fromProfile = passengers.find((p) => p.id === pid)?.lastDriverId;
-    const lastTrip = bookings.find((b) => b.passengerId === pid && b.driverId && b.status !== "cancelled");
-    return fromUser ?? fromProfile ?? lastTrip?.driverId;
+    return (
+      (user?.id === pid ? user.lastDriverId : undefined) ??
+      passengers.find((p) => p.id === pid)?.lastDriverId ??
+      bookings.find((b) => b.passengerId === pid && b.driverId)?.driverId
+    );
   };
 
   const value = useMemo<Store>(
@@ -177,46 +153,73 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       login: (email, role) => {
         const e = email.toLowerCase();
         const r: Role =
-          role ?? (e.includes("ops") || e.includes("admin") ? "ops" : e.includes("driver") ? "driver" : "passenger");
-        const name = r === "ops" ? "Nova Lin" : r === "driver" ? "Kenji Mori" : "Amara Chen";
-        setUser(demoUser(r, name, email || `${r}@zoufeng.travel`));
+          role ??
+          (e.includes("ops") || e.includes("admin")
+            ? "ops"
+            : e.includes("dispatch")
+              ? "dispatcher"
+              : e.includes("driver")
+                ? "driver"
+                : "passenger");
+        const name = r === "ops" || r === "dispatcher" ? "Nova Lin" : r === "driver" ? "Kenji Mori" : "Amara Chen";
+        setUser({
+          id: r === "passenger" ? "p1" : r === "driver" ? "d1" : "ops",
+          name,
+          email: email || `${r}@zoudian.travel`,
+          phone: "+886 900 880 101",
+          role: r,
+          points: 4280,
+          wallet: { TWD: 12600, USD: 240 },
+          referralCode: "ZOUDIAN-88",
+          lastDriverId: r === "passenger" ? "d1" : undefined,
+        });
       },
       logout: () => setUser(null),
       draft,
       setDraft: (p) => setDraftState((d) => ({ ...d, ...p })),
       bookings,
       placeBooking: () => {
-        const preferred = draft.driverMode === "same";
+        const routeCount = bookings.filter((b) => b.pickup === draft.pickup && b.dropoff === draft.dropoff).length;
         const q = quote({
           service: draft.service,
           vehicle: draft.vehicle,
-          airport: draft.service === "airport",
-          night: new Date(draft.when || Date.now()).getHours() >= 22,
+          extras: draft.extras,
+          promo: draft.promo,
+          when: draft.when,
           hours: draft.hours,
-          preferredDriver: preferred,
+          days: draft.days,
+          surge: routeCount >= 2,
         });
-        const pid = user?.id && user.role === "passenger" ? user.id : "p1";
-        const last = lastDriverId(pid);
-        const online = drivers.filter((d) => d.online && d.status === "approved");
-        const driver = preferred && last ? drivers.find((d) => d.id === last) : online[0];
+        const online = drivers.filter((d) => d.work === "available" && d.status === "approved");
+        const preferEn = draft.extras.includes("english");
+        const scored = [...online].sort((a, b) => {
+          const fleet = { A: 3, B: 2, C: 1 };
+          const sa = fleet[a.fleet] * 10 + (preferEn && a.languages.includes("EN") ? 2 : 0) + a.rating;
+          const sb = fleet[b.fleet] * 10 + (preferEn && b.languages.includes("EN") ? 2 : 0) + b.rating;
+          return sb - sa;
+        });
+        const driver = draft.service === "rental" ? undefined : scored[0];
+        const ch: Channel =
+          draft.service === "instant" ? "taxi" : draft.service === "hourly" ? "hourly" : draft.service === "rental" ? "rental" : draft.channel;
         const b: Booking = {
-          id: `ZF-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          id: `ZD-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
           service: draft.service,
-          status: "assigned",
+          status: draft.service === "instant" ? "assigned" : "payment_confirmed",
           pickup: draft.pickup,
           pickupZh: draft.pickup,
           dropoff: draft.dropoff,
           dropoffZh: draft.dropoff,
-          when: draft.when || new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
-          vehicle: draft.vehicle,
+          when: draft.when || new Date(Date.now() + 36e5).toISOString().slice(0, 16),
+          vehicle: draft.vehicle as Booking["vehicle"],
           passengers: draft.passengers,
           luggage: draft.luggage,
-          flight: draft.service === "airport" ? draft.flight : undefined,
-          flightEta: draft.service === "airport" ? "14:35 T1" : undefined,
-          hours: draft.service === "charter" || draft.service === "designated" ? draft.hours : undefined,
+          extras: draft.extras,
+          promo: draft.promo || undefined,
+          flight: draft.service.startsWith("airport") ? draft.flight : undefined,
+          hours: draft.service === "hourly" ? draft.hours : undefined,
+          days: draft.service === "rental" ? draft.days : undefined,
           driverId: driver?.id,
-          preferredDriver: preferred,
-          passengerId: pid,
+          passengerId: user?.id ?? "p1",
           otp: String(1000 + Math.floor(Math.random() * 9000)),
           price: q.total,
           currency: "TWD",
@@ -226,16 +229,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           passengerPhone: draft.phone,
           commission: Math.round(q.total * COMMISSION),
           driverNet: Math.round(q.total * (1 - COMMISSION)),
-          channel: "app",
+          channel: ch,
+          payment: draft.payment,
         };
         setBookings((xs) => [b, ...xs]);
-        if (user) {
-          setUser({
-            ...user,
-            points: user.points + Math.round(q.total / 20),
-            lastDriverId: driver?.id ?? user.lastDriverId,
-          });
-        }
+        if (user) setUser({ ...user, lastDriverId: driver?.id ?? user.lastDriverId, points: user.points + 20 });
         return b;
       },
       advance: (id, status) =>
@@ -243,12 +241,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           xs.map((b) => {
             if (b.id !== id) return b;
             const order: BookingStatus[] = [
-              "draft",
-              "confirmed",
+              "payment_pending",
+              "payment_confirmed",
+              "new",
               "assigned",
-              "en_route",
-              "arrived",
-              "in_progress",
+              "accepted",
+              "arriving",
+              "onboard",
               "completed",
             ];
             const next = status ?? order[Math.min(order.indexOf(b.status) + 1, order.length - 1)];
@@ -260,19 +259,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           xs.map((b) => {
             if (b.id !== id || b.status === "completed") return b;
             const hours = Math.max(0, (new Date(b.when).getTime() - Date.now()) / 36e5);
-            const fee = cancelFee(hours, b.price);
-            return {
-              ...b,
-              status: "cancelled",
-              breakdown: [...b.breakdown, { label: "Cancellation tier", labelZh: "取消費級距", amount: fee }],
-              price: fee,
-              commission: Math.round(fee * COMMISSION),
-              driverNet: Math.round(fee * (1 - COMMISSION)),
-            };
+            const fee = cancelFee(hours, b.price, cancelMidPct);
+            return { ...b, status: "cancelled", price: fee };
           }),
         ),
       assignDriver: (id, driverId) =>
         setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, driverId, status: "assigned" } : b))),
+      grab: (id, driverId) =>
+        setBookings((xs) => xs.map((b) => (b.id === id && (b.status === "new" || !b.driverId) ? { ...b, driverId, status: "accepted" } : b))),
       switches,
       requestSwitch: ({ bookingId, fromDriverId, reason, reasonZh }) => {
         const req: SwitchRequest = {
@@ -288,88 +282,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setSwitches((xs) => [req, ...xs]);
         return req;
       },
-      decideSwitch: (id, status, toDriverId, note) => {
-        setSwitches((xs) =>
-          xs.map((s) =>
-            s.id === id
-              ? { ...s, status, toDriverId, note, decidedAt: new Date().toISOString() }
-              : s,
-          ),
-        );
+      decideSwitch: (id, status, toDriverId) => {
+        setSwitches((xs) => xs.map((s) => (s.id === id ? { ...s, status, toDriverId, decidedAt: new Date().toISOString() } : s)));
         const sw = switches.find((s) => s.id === id);
         if (status === "approved" && sw?.bookingId && toDriverId) {
-          setBookings((xs) =>
-            xs.map((b) => (b.id === sw.bookingId ? { ...b, driverId: toDriverId, preferredDriver: false } : b)),
-          );
+          setBookings((xs) => xs.map((b) => (b.id === sw.bookingId ? { ...b, driverId: toDriverId } : b)));
         }
       },
       tickets,
       settlements,
       messages,
       askHalo: (text) => {
-        const reply = haloReply(text, locale);
         setMessages((m) => [
           ...m,
           { id: crypto.randomUUID(), role: "user", text },
-          { id: crypto.randomUUID(), role: "agent", text: reply },
+          { id: crypto.randomUUID(), role: "agent", text: halo(text, locale) },
         ]);
       },
-      itinerary,
-      setItinerary,
-      planFromPrompt: (prompt) => {
-        const p = prompt.toLowerCase();
-        if (p.includes("family") || p.includes("家庭")) setItinerary(["a1", "a5", "a8", "a2"]);
-        else if (p.includes("night") || p.includes("夜")) setItinerary(["a5", "a2", "a3"]);
-        else if (p.includes("nature") || p.includes("自然")) setItinerary(["a4", "a6", "a7"]);
-        else setItinerary(["a5", "a3", "a7", "a2"]);
-      },
+      recent,
+      pushRecent: (q) => setRecent((xs) => [q, ...xs.filter((x) => x !== q)].slice(0, 6)),
       lastDriverId,
+      cancelMidPct,
+      setCancelMidPct,
     }),
-    [locale, currency, user, draft, bookings, switches, tickets, settlements, messages, itinerary],
+    [locale, currency, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-function haloReply(text: string, locale: Locale) {
+function halo(text: string, locale: Locale) {
   const q = text.toLowerCase();
-  if (q.includes("switch") || q.includes("another driver") || q.includes("換司") || q.includes("更換")) {
-    return loc(
-      locale,
-      "Policy M25: after first assignment you cannot privately message another driver. Open a company switch request. Ops reassigns, both parties are notified, and the audit stays on the booking.",
-      "政策 M25：首次指派後不得私下聯絡其他司機。請提交公司代換申請。由調度改派、雙方通知，並寫入訂單稽核。",
-    );
-  }
   if (q.includes("cancel") || q.includes("取消")) {
-    return loc(
-      locale,
-      "L1 policy: full refund >24h before pickup; 50% between 12–24h; inside 12h the fare is captured. One-click refund is available on confirmed trips.",
-      "L1 政策：出發前 24 小時以上全額退款；12–24 小時收 50%；12 小時內收取全額。已確認訂單可一鍵退款。",
-    );
+    return loc(locale, ">24h 100% refund · 6–24h partial (admin %) · <6h no refund.", "＞24h 全退 · 6–24h 部分（後台可調）· ＜6h 不退。");
   }
-  if (q.includes("flight") || q.includes("航班")) {
-    return loc(
-      locale,
-      "Flight mesh is live. CI101 NRT→TPE on time 14:35 T1. Free-wait is 60 minutes after wheels-down.",
-      "航班監控已連線。CI101 成田→桃園準時 14:35 T1。落地後免費等候 60 分鐘。",
-    );
+  if (q.includes("wait") || q.includes("等候") || q.includes("flight") || q.includes("航班")) {
+    return loc(locale, "Airport free wait is 45 minutes. Night +20% 23:00–06:00. Names stay in English.", "機場免費等候 45 分鐘。夜間 23:00–06:00 加成 20%。英文姓名不翻譯。");
   }
-  if (q.includes("price") || q.includes("價格") || q.includes("價錢")) {
-    return loc(
-      locale,
-      "Quotes use 16 factors and always show an itemized breakdown in TWD (USD display optional).",
-      "報價採用 16 因子，明細以新臺幣為準（可切換美元顯示）。",
-    );
+  if (q.includes("switch") || q.includes("換司")) {
+    return loc(locale, "After first contact, change driver only through the company desk.", "首次接觸後，更換司機只能透過公司。");
   }
-  return loc(
-    locale,
-    "Halo (L1) understood. I can handle quotes, delays, refunds, wallet FX (TWD/USD), loyalty, and company driver switches.",
-    "光環（L1）已理解。可處理報價、延誤、退款、新臺幣／美元錢包、會員與公司代換司機。",
-  );
+  return loc(locale, "I can help with quote, extras, LINE Pay, invoice, SOS, and tickets (8 categories).", "可處理報價、加購、LINE Pay、發票、SOS 與 8 類工單。");
 }
 
 export function useStore() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error("store");
   return ctx;
+}
+
+export function extraLabel(id: ExtraId, locale: Locale) {
+  const e = extraCat.find((x) => x.id === id);
+  return locale === "zh" ? e?.nameZh : e?.name;
 }

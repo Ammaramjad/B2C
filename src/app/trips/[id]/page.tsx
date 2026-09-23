@@ -105,7 +105,7 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15 text-sm">{driver?.photo}</div>
             <div>
               <div className="display text-xl">
-                {driver ? (locale === "zh" ? driver.nameZh : driver.name) : locale === "zh" ? "指派中…" : "Assigning…"}
+                {driver ? driver.name : locale === "zh" ? "指派中…" : "Assigning…"}
               </div>
               <div className="text-xs text-white/50">
                 {driver
@@ -129,7 +129,7 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
               onClick={() => {
                 if (code === b.otp) {
                   setOtpOk(true);
-                  advance(b.id, "in_progress");
+                  advance(b.id, "onboard");
                 }
               }}
             >
@@ -152,7 +152,7 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
             <span>Total</span>
             <span>{money(convert(b.price, currency), currency)}</span>
           </div>
-          {b.flight && <p className="mt-3 text-xs text-white/45">Flight {b.flight} · {b.flightEta} · 60-min free wait</p>}
+          {b.flight && <p className="mt-3 text-xs text-white/45">Flight {b.flight} · 45-min free wait</p>}
         </Panel>
       </div>
     </div>
