@@ -11,7 +11,7 @@ import { Btn, Status } from "@/components/ui";
 
 export default function TripLivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { bookings, currency, advance, cancel, locale, requestSwitch } = useStore();
+  const { bookings, currency, advance, cancel, locale, requestSwitch, addIncident } = useStore();
   const b = bookings.find((x) => x.id === id);
   const driver = drivers.find((d) => d.id === b?.driverId);
   const [otpOk, setOtpOk] = useState(false);
@@ -78,7 +78,15 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <Btn kind="ghost" onClick={() => setShare(true)}>{loc(locale, "Share trip", "分享行程")}</Btn>
-          <Btn kind="danger" onClick={() => setSos(true)}>SOS</Btn>
+          <Btn
+            kind="danger"
+            onClick={() => {
+              setSos(true);
+              addIncident({ level: "critical", kind: "SOS", note: "Passenger SOS — not a substitute for 110/119", bookingId: b.id });
+            }}
+          >
+            SOS
+          </Btn>
           {driver && (
             <Btn
               kind="ghost"

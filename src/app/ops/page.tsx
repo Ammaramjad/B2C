@@ -9,7 +9,7 @@ import { LiveMap } from "@/components/live-map";
 import { Btn, Chip, Status } from "@/components/ui";
 
 export default function OpsPage() {
-  const { user, login, locale, currency, bookings, assignDriver, switches, tickets } = useStore();
+  const { user, login, locale, currency, bookings, assignDriver, switches, tickets, incidents, addIncident } = useStore();
   const [sel, setSel] = useState(bookings.find((b) => !b.driverId || b.status === "new")?.id ?? bookings[0]?.id);
   const live = bookings.filter((b) => ["assigned", "accepted", "arriving", "onboard"].includes(b.status));
   const unassigned = bookings.filter((b) => !b.driverId && b.status !== "cancelled" && b.status !== "completed");
@@ -34,10 +34,13 @@ export default function OpsPage() {
         </div>
         <LiveMap locale={locale} mode="fleet" height={480} pickup={zh ? "全市" : "City"} dropoff={`${unassigned.length} waiting`} />
         <div className="flex flex-wrap gap-2 text-sm">
-          <span className="text-[var(--danger)]">CRITICAL · SOS {tickets.filter((t) => t.status !== "resolved").length}</span>
+          <span className="text-[var(--danger)]">CRITICAL · SOS {incidents.filter((i) => i.level === "critical").length + tickets.filter((t) => t.status !== "resolved").length}</span>
           <span className="text-[var(--warning)]">ATTENTION · {unassigned.length} unassigned</span>
           <span className="text-[var(--muted)]">INFO · {switches.filter((s) => s.status === "open").length} switch</span>
         </div>
+        <Btn kind="danger" onClick={() => addIncident({ level: "critical", kind: "SOS", note: "Ops flagged trip", bookingId: sel })}>
+          Raise incident
+        </Btn>
       </div>
       <aside className="space-y-4">
         <div className="label">{loc(locale, "Queue", "佇列")}</div>

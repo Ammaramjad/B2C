@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { extras as extraCat } from "./catalog";
 import { drivers, passengers, seedBookings, seedSettlements, seedSwitches, seedTickets } from "./data";
 import { loc } from "./i18n";
+import { defaultRules, type AuditEntry, type Incident, type PricingRules } from "./platform";
 import { cancelFee, COMMISSION, quote } from "./pricing";
 import type {
   Booking,
@@ -77,6 +78,12 @@ interface Store {
   lastDriverId: (passengerId?: string) => string | undefined;
   cancelMidPct: number;
   setCancelMidPct: (n: number) => void;
+  rules: PricingRules;
+  setRules: (p: Partial<PricingRules>) => void;
+  audit: AuditEntry[];
+  log: (action: string, entity: string, detail: string) => void;
+  incidents: Incident[];
+  addIncident: (p: Omit<Incident, "id" | "at">) => void;
 }
 
 const defaultDraft: Draft = {
@@ -116,6 +123,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recent, setRecent] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>(["tpe-city-sedan"]);
   const [cancelMidPct, setCancelMidPct] = useState(0.5);
+  const [rules, setRulesState] = useState<PricingRules>(defaultRules);
+  const [audit, setAudit] = useState<AuditEntry[]>([
+    { id: "AU-1", at: new Date().toISOString(), actor: "system", action: "seed", entity: "platform", detail: "Design store hydrated" },
+  ]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -132,6 +144,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(s.recent)) setRecent(s.recent);
         if (Array.isArray(s.saved)) setSaved(s.saved);
         if (typeof s.cancelMidPct === "number") setCancelMidPct(s.cancelMidPct);
+        if (s.rules) setRulesState({ ...defaultRules, ...s.rules });
+        if (Array.isArray(s.audit)) setAudit(s.audit);
+        if (Array.isArray(s.incidents)) setIncidents(s.incidents);
       }
     } catch {
       /* ignore */
@@ -141,8 +156,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct }));
-  }, [locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct, hydrated]);
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct, rules, audit, incidents }),
+    );
+  }, [locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct, rules, audit, incidents, hydrated]);
 
   const lastDriverId = (passengerId?: string) => {
     const pid = passengerId ?? user?.id ?? "p1";
@@ -260,6 +278,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
         setBookings((xs) => [b, ...xs]);
         if (user) setUser({ ...user, lastDriverId: driver?.id ?? user.lastDriverId, points: user.points + 20 });
+        setAudit((xs) => [{ id: `AU-${b.id}`, at: b.createdAt, actor: user?.name ?? "guest", action: "booking.create", entity: b.id, detail: `${b.service} ${b.price} TWD` }, ...xs].slice(0, 80));
         return b;
       },
       advance: (id, status) =>
@@ -277,6 +296,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               "completed",
             ];
             const next = status ?? order[Math.min(order.indexOf(b.status) + 1, order.length - 1)];
+            setAudit((xs) => [{ id: `AU-${id}-${next}`, at: new Date().toISOString(), actor: user?.name ?? "system", action: "booking.status", entity: id, detail: `${b.status} → ${next}` }, ...xs].slice(0, 80));
             return { ...b, status: next };
           }),
         ),
@@ -286,13 +306,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             if (b.id !== id || b.status === "completed") return b;
             const hours = Math.max(0, (new Date(b.when).getTime() - Date.now()) / 36e5);
             const fee = cancelFee(hours, b.price, cancelMidPct);
+            setAudit((xs) => [{ id: `AU-c-${id}`, at: new Date().toISOString(), actor: user?.name ?? "guest", action: "booking.refund", entity: id, detail: `fee ${fee}` }, ...xs].slice(0, 80));
             return { ...b, status: "cancelled", price: fee };
           }),
         ),
-      assignDriver: (id, driverId) =>
-        setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, driverId, status: "assigned" } : b))),
-      grab: (id, driverId) =>
-        setBookings((xs) => xs.map((b) => (b.id === id && (b.status === "new" || !b.driverId) ? { ...b, driverId, status: "accepted" } : b))),
+      assignDriver: (id, driverId) => {
+        setAudit((xs) => [{ id: `AU-a-${id}`, at: new Date().toISOString(), actor: user?.name ?? "ops", action: "dispatch.manual", entity: id, detail: driverId }, ...xs].slice(0, 80));
+        setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, driverId, status: "assigned" } : b)));
+      },
+      grab: (id, driverId) => {
+        setAudit((xs) => [{ id: `AU-g-${id}`, at: new Date().toISOString(), actor: user?.name ?? "driver", action: "dispatch.accept", entity: id, detail: driverId }, ...xs].slice(0, 80));
+        setBookings((xs) => xs.map((b) => (b.id === id && (b.status === "new" || !b.driverId) ? { ...b, driverId, status: "accepted" } : b)));
+      },
       switches,
       requestSwitch: ({ bookingId, fromDriverId, reason, reasonZh }) => {
         const req: SwitchRequest = {
@@ -329,9 +354,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       pushRecent: (q) => setRecent((xs) => [q, ...xs.filter((x) => x !== q)].slice(0, 6)),
       lastDriverId,
       cancelMidPct,
-      setCancelMidPct,
+      setCancelMidPct: (n) => {
+        setCancelMidPct(n);
+        setRulesState((r) => ({ ...r, cancelMidPct: Math.round(n * 100) }));
+        setAudit((xs) => [{ id: `AU-pol-${n}`, at: new Date().toISOString(), actor: user?.name ?? "admin", action: "system.configure", entity: "cancel", detail: String(n) }, ...xs].slice(0, 80));
+      },
+      rules,
+      setRules: (p) => {
+        setRulesState((r) => ({ ...r, ...p }));
+        setAudit((xs) => [{ id: `AU-rule-${Date.now()}`, at: new Date().toISOString(), actor: user?.name ?? "admin", action: "pricing.manage", entity: "rules", detail: JSON.stringify(p) }, ...xs].slice(0, 80));
+      },
+      audit,
+      log: (action, entity, detail) =>
+        setAudit((xs) => [{ id: `AU-${Date.now()}`, at: new Date().toISOString(), actor: user?.name ?? "system", action, entity, detail }, ...xs].slice(0, 80)),
+      incidents,
+      addIncident: (p) =>
+        setIncidents((xs) => [{ ...p, id: `IN-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, at: new Date().toISOString() }, ...xs]),
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, saved, cancelMidPct],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, saved, cancelMidPct, rules, audit, incidents],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
