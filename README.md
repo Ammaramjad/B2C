@@ -11,6 +11,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Shareable preview (Cloudflare Tunnel, refreshed 2026-09-23):
+https://quoted-stockholm-payroll-tahoe.trycloudflare.com
+
 ## Demo roles
 
 - Passenger: any email on `/login`
