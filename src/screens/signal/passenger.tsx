@@ -148,7 +148,7 @@ export function AirportBook() {
             >
               <b>{k}</b>
               {!vehicleFits(k, pax, bags) ? (
-                <p className="mt-1 text-sm text-[var(--warn)]">{mismatchCopy(k, pax, bags)}</p>
+                <p className="mt-1 text-sm text-[var(--warn)]" data-testid="capacity-mismatch">{mismatchCopy(k, pax, bags)}</p>
               ) : (
                 <p className="mt-1 text-sm text-[var(--ink-2)]">Compatible with this party.</p>
               )}
@@ -167,9 +167,16 @@ export function AirportBook() {
             <div className="kicker">Quote updates live</div>
             <div className="zf-metric text-3xl">NT${fare.toLocaleString()}</div>
           </div>
-          <button type="button" className="zf-btn" disabled={!fit} data-testid="confirm-airport" onClick={confirm}>
-            Confirm & pay NT${fare.toLocaleString()}
-          </button>
+          <div>
+            {!fit ? (
+              <p className="mb-2 text-sm text-[var(--warn)]" data-testid="capacity-block">
+                Confirm is disabled. {mismatchCopy(klass, pax, bags)}
+              </p>
+            ) : null}
+            <button type="button" className="zf-btn" disabled={!fit} data-testid="confirm-airport" onClick={confirm}>
+              Confirm & pay NT${fare.toLocaleString()}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -279,12 +286,15 @@ export function PreferredDrivers() {
         <div className="kicker">Request status</div>
         <ol className="mt-3 space-y-2 text-sm">
           {[
-            ["requested", "Request received by Zoufeng"],
-            ["validating", "Availability / vehicle / schedule / rules"],
-            ["offered", "Official company offer sent to David"],
+            ["pending", "Request received by Zoufeng"],
+            ["under_review", "Ops reviewing availability / vehicle / schedule"],
+            ["validated", "Company validation passed"],
+            ["company_offered", "Official company offer issued"],
+            ["driver_offered", "Offer on the driver desk"],
             ["confirmed", "Preferred driver confirmed"],
+            ["rejected", "Rejected / cancelled"],
           ].map(([k, l]) => (
-            <li key={k} className={st === k || (st === "confirmed" && k !== "unavailable") ? "text-[var(--signal)]" : "text-[var(--mute)]"}>
+            <li key={k} className={st === k ? "text-[var(--signal)]" : "text-[var(--mute)]"}>
               {l}
             </li>
           ))}

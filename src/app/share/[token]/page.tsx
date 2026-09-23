@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { resolveBooking } from "@/lib/domain/booking";
+import { publicShareView, resolveShare } from "@/lib/domain/share";
 import { useLive } from "@/lib/live/engine";
 import { useStore } from "@/lib/store";
 
@@ -9,21 +10,40 @@ export default function SharePage() {
   const { token } = useParams<{ token: string }>();
   const { domain, bookings } = useStore();
   const { live } = useLive();
-  const rec = domain.shares.find((s) => s.token === token);
-  const b = resolveBooking(rec?.bookingId ?? live.bookingId, bookings, live);
+  const resolved = resolveShare(typeof token === "string" ? token : undefined, domain.shares);
+  if (resolved.status === "unknown") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12">
+        <div className="kicker">Share link</div>
+        <h1 className="display mt-2 text-5xl">Invalid token</h1>
+        <p className="mt-3 text-sm" data-testid="share-invalid">This token does not resolve a trip. Internal booking ids are not accepted as share tokens.</p>
+      </div>
+    );
+  }
+  if (resolved.status === "expired") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12">
+        <div className="kicker">Share link</div>
+        <h1 className="display mt-2 text-5xl">Link expired</h1>
+        <p className="mt-3 text-sm" data-testid="share-expired">Recipient access ended. Ask the passenger to mint a new share link.</p>
+      </div>
+    );
+  }
+  const rec = resolved.record;
+  const b = rec ? resolveBooking(rec.bookingId, bookings, live) : null;
+  const view = publicShareView(b, rec && live.bookingId === rec.bookingId ? live : null, rec?.bookingId ?? "");
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <div className="kicker">Recipient-safe trip view</div>
       <h1 className="display mt-2 text-5xl">Shared movement</h1>
-      <p className="mt-2 text-sm text-[var(--ink-2)]">OTP, payment method, and SOS are hidden. This is not a driver contact channel.</p>
+      <p className="mt-2 text-sm text-[var(--ink-2)]">OTP, SOS, payment, phone numbers, and dispatch controls are hidden.</p>
       <div className="zf-panel mt-6 space-y-2 p-4">
-        <div className="kicker">{b?.id ?? "Unknown share"}</div>
+        <div className="kicker">Company movement</div>
         <div className="text-xl font-semibold">
-          {b?.pickup ?? live.pickup} → {b?.dropoff ?? live.dropoff}
+          {view.pickup} → {view.dropoff}
         </div>
-        <div className="text-sm">{b?.flight ?? live.flight} · {live.phase.replaceAll("_", " ")}</div>
-        <div className="text-sm">Driver {live.assignedId ?? "company matching"} · ETA {live.etaMin || "—"}</div>
-        {!rec ? <p className="text-sm text-[var(--warn)]">Token not in this browser’s domain store. Live tape shown if ids match.</p> : null}
+        <div className="text-sm">{view.flight} · {view.phase}</div>
+        <div className="text-sm">{view.driverLabel}{view.etaMin != null ? ` · ETA ${view.etaMin}` : ""}</div>
       </div>
     </div>
   );

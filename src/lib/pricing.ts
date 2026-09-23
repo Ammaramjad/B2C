@@ -1,5 +1,5 @@
-import { HOURLY_RATE, NIGHT_RATE, SURGE, extras as extraCat, promos, rentals, taxis, vehicles } from "./catalog";
-import type { Currency, ExtraId, LineItem, ServiceType } from "./types";
+import { HOURLY_RATE, NIGHT_RATE, SURGE, extras as extraCat, promos, rentals, taxis, vehicles } from "./catalog.ts";
+import type { Currency, ExtraId, LineItem, ServiceType } from "./types.ts";
 
 const FX: Record<Currency, number> = { TWD: 1, USD: 0.031 };
 
@@ -61,10 +61,6 @@ export function quote(opts: {
   return { items, total, base, extraSum, night, surgeAmt, discount };
 }
 
-export function cancelFee(hoursBefore: number, total: number, midPct = 0.5) {
-  if (hoursBefore >= 24) return 0;
-  if (hoursBefore >= 6) return Math.round(total * midPct);
-  return total;
-}
+export { cancelFee } from "./domain/fees.ts";
 
 export { COMMISSION } from "./catalog";

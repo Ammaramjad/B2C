@@ -19,6 +19,7 @@ import {
   applyRejectOffer,
   applySendOffer,
   applyShareTrip,
+  nextReplacementCandidate,
   applySos,
   applyVerifyOtp,
 } from "./actions";
@@ -42,8 +43,10 @@ type LiveApi = {
   requestPreferred: (driverId: string) => void;
   validatePreferred: () => void;
   rejectPreferred: () => void;
+  cancelPreferred: () => void;
   offerPreferred: () => void;
   acceptPreferred: () => void;
+  sendNextReplacement: () => void;
   confirmAirport: (input: {
     flight: string;
     pax: number;
@@ -93,6 +96,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           playing: false,
           offerExpiresAt: parsed.offerExpiresAt ?? null,
           offerRemainSec: parsed.offerRemainSec ?? null,
+          offerStatus: parsed.offerStatus ?? null,
+          rejectedOfferIds: parsed.rejectedOfferIds ?? [],
           offerKind: parsed.offerKind ?? null,
           shareToken: parsed.shareToken ?? null,
           rejects: parsed.rejects ?? {},
@@ -182,6 +187,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       reportIncident: (category, note) => setLive((s) => applyIncident(s, category, note)),
       sendReplacement: (driverId) => setLive((s) => applySendOffer(s, driverId, "replacement")),
       acceptReplacement: () => setLive((s) => applyAcceptOffer(s)),
+      sendNextReplacement: () =>
+        setLive((s) => {
+          const nxt = nextReplacementCandidate(s);
+          return nxt ? applySendOffer(s, nxt.id, "replacement") : s;
+        }),
       rejectOffer: (driverId) =>
         setLive((s) => {
           const next = applyRejectOffer(s, driverId);
@@ -198,7 +208,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       triggerSos: () => setLive((s) => applySos(s)),
       requestPreferred: (id) => setLive((s) => applyPreferredRequest(s, id)),
       validatePreferred: () => setLive((s) => applyPreferredStatus(s, "validating")),
-      rejectPreferred: () => setLive((s) => applyPreferredStatus(s, "declined")),
+      rejectPreferred: () => setLive((s) => applyPreferredStatus(s, "rejected")),
+      cancelPreferred: () => setLive((s) => applyPreferredStatus(s, "cancelled")),
       offerPreferred: () =>
         setLive((s) => {
           const next = applyPreferredStatus(s, "offered");

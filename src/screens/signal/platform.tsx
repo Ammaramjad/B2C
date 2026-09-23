@@ -4,11 +4,15 @@ import { useMemo, useState } from "react";
 import { extras, promos, services, vehicles } from "@/lib/catalog";
 import { passengers } from "@/lib/data";
 import { capacityScenario, defaultDispatchPolicy, defaultDynamicRules, simulateCancel, simulateQuote } from "@/lib/domain/policy";
-import { cancelFee } from "@/lib/pricing";
+import { cancelFee, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
 import { deriveCounters } from "@/lib/domain/booking";
+import { financeTotals } from "@/lib/domain/payments";
+import { seedPaymentsFromBookings, seedWalletFromBookings } from "@/lib/domain/ledger";
+import { NOTIFY_TEMPLATES, previewNotification } from "@/lib/domain/notify";
 import type { ExtraId, ServiceType } from "@/lib/types";
+import type { PaymentState } from "@/lib/domain/payments";
 
 function Studio({ kicker, title, children }: { kicker: string; title: string; children: React.ReactNode }) {
   return (
@@ -115,13 +119,16 @@ export function CfgPricing() {
   const [days, setDays] = useState(2);
   const [km, setKm] = useState(32);
   const [mins, setMins] = useState(45);
-  const [version, setVersion] = useState("draft");
-  const q = useMemo(
-    () => simulateQuote({ service, vehicle, when, hours, days, extras: ["meet"] as ExtraId[], distanceKm: km, durationMin: mins }),
-    [service, vehicle, when, hours, days, km, mins],
+  const extras = useMemo(() => ["meet"] as ExtraId[], []);
+  const checkout = useMemo(() => quote({ service, vehicle, when, hours, days, extras }), [service, vehicle, when, hours, days, extras]);
+  const shadow = useMemo(
+    () => simulateQuote({ service, vehicle, when, hours, days, extras, distanceKm: km, durationMin: mins, surge: true }),
+    [service, vehicle, when, hours, days, extras, km, mins],
   );
+  const differs = shadow.total !== checkout.total;
   return (
-    <Studio kicker="Pricing studio" title="Fare matrix + quote simulator">
+    <Studio kicker="Pricing studio" title="BASE / CURRENT / SHADOW / PRODUCTION">
+      <p className="mt-2 text-sm">Checkout uses quote(). Shadow distance/time/surge never apply silently.</p>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
           <label className="zf-field">
@@ -145,30 +152,27 @@ export function CfgPricing() {
             <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           </label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="zf-field"><span>Distance km</span><input type="number" value={km} onChange={(e) => setKm(Number(e.target.value))} /></label>
-            <label className="zf-field"><span>Duration min</span><input type="number" value={mins} onChange={(e) => setMins(Number(e.target.value))} /></label>
+            <label className="zf-field"><span>Shadow km</span><input type="number" value={km} onChange={(e) => setKm(Number(e.target.value))} /></label>
+            <label className="zf-field"><span>Shadow min</span><input type="number" value={mins} onChange={(e) => setMins(Number(e.target.value))} /></label>
             <label className="zf-field"><span>Hours</span><input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} /></label>
             <label className="zf-field"><span>Days</span><input type="number" value={days} onChange={(e) => setDays(Number(e.target.value))} /></label>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {["draft", "preview", "published"].map((v) => (
-              <button key={v} type="button" className={`zf-btn ${version === v ? "" : "ghost"}`} style={{ minHeight: 32 }} onClick={() => setVersion(v)}>
-                {v}
-              </button>
-            ))}
-          </div>
         </div>
-        <div className="zf-panel p-4" data-testid="quote-simulator">
-          <div className="kicker">Breakdown · {version}</div>
-          <div className="zf-metric mt-2 text-4xl">NT${q.total.toLocaleString()}</div>
-          <ul className="mt-3 space-y-1 text-sm">
-            {q.items.filter((i) => i.amount).map((i) => (
-              <li key={i.label} className="flex justify-between">
-                <span>{i.label}</span>
-                <span className="mono">{i.amount}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-3" data-testid="quote-simulator">
+          <div className="zf-panel p-4">
+            <div className="kicker">BASE / CURRENT checkout · quote()</div>
+            <div className="zf-metric mt-2 text-4xl">NT${checkout.total.toLocaleString()}</div>
+          </div>
+          <div className="zf-panel p-4">
+            <div className="kicker">SHADOW · not applied</div>
+            <div className="zf-metric mt-2 text-3xl">NT${shadow.total.toLocaleString()}</div>
+            {differs ? <p className="mt-2 text-sm text-[var(--warn)]" data-testid="shadow-diff">Simulation differs from checkout policy by NT${(shadow.total - checkout.total).toLocaleString()}.</p> : null}
+          </div>
+          <div className="zf-panel p-4">
+            <div className="kicker">PRODUCTION published</div>
+            <div className="text-sm">Same as CURRENT until a server fare table is configured. Production persist throws.</div>
+            <div className="zf-metric mt-2 text-2xl">NT${checkout.total.toLocaleString()}</div>
+          </div>
         </div>
       </div>
     </Studio>
@@ -291,39 +295,47 @@ export function CfgDispatch() {
 }
 
 export function CfgNotify() {
-  const { live } = useLive();
-  const templates = [
-    { event: "booking.created", audience: "passenger", channel: "in_app", enabled: true },
-    { event: "dispatch.reassigned", audience: "passenger", channel: "push", enabled: true },
-    { event: "driver.incident.reported", audience: "ops", channel: "in_app", enabled: true },
-    { event: "preferred.confirmed", audience: "passenger", channel: "email", enabled: false },
-  ];
+  const { domain, queueNotify } = useStore();
+  const [event, setEvent] = useState(NOTIFY_TEMPLATES[0].event);
+  const preview = previewNotification(event, "en");
   return (
-    <Studio kicker="Notification center" title="Templates + operational log">
+    <Studio kicker="Notification center" title="Templates · generated, never claimed delivered">
+      <p className="mt-2 text-sm">Demo preview only. SMS/email/push is not delivered unless a provider confirms it.</p>
       <table className="zf-table mt-4">
         <thead>
           <tr>
             <th>Event</th>
             <th>Audience</th>
             <th>Channel</th>
-            <th>On</th>
           </tr>
         </thead>
         <tbody>
-          {templates.map((t) => (
+          {NOTIFY_TEMPLATES.map((t) => (
             <tr key={t.event}>
               <td>{t.event}</td>
               <td>{t.audience}</td>
               <td>{t.channel}</td>
-              <td>{t.enabled ? "yes" : "no"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="kicker mt-6">Log (live tape)</div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <select value={event} onChange={(e) => setEvent(e.target.value)} aria-label="Template event">
+          {NOTIFY_TEMPLATES.map((t) => (
+            <option key={t.event} value={t.event}>{t.event}</option>
+          ))}
+        </select>
+        <button type="button" className="zf-btn" onClick={() => queueNotify(event)}>Generate preview</button>
+      </div>
+      {preview ? (
+        <div className="zf-panel mt-3 p-3 text-sm">
+          Status {preview.status} · {preview.body} · {preview.note}
+        </div>
+      ) : null}
+      <div className="kicker mt-6">Domain log</div>
       <ul className="zf-stream mt-2">
-        {live.events.filter((e) => e.type.startsWith("notify") || e.type === "notification.created").slice(0, 8).map((e) => (
-          <li key={e.id}>{e.clock} · {e.type} · {e.title}</li>
+        {domain.notifications.slice(0, 12).map((n) => (
+          <li key={n.id}>{n.at.slice(11, 19)} · {n.event} · {n.status}{n.providerConfirmed ? " · provider" : " · not delivered"}</li>
         ))}
       </ul>
     </Studio>
@@ -337,7 +349,7 @@ export function CfgI18n() {
   return (
     <Studio kicker="Translation desk" title="Side-by-side proofing">
       <div className="mt-3 flex flex-wrap gap-2">
-        {["all", "MISSING", "DRAFT", "NEEDS REVIEW", "APPROVED"].map((s) => (
+        {["all", "missing", "draft", "reviewed", "approved", "MISSING", "DRAFT", "NEEDS REVIEW", "APPROVED"].map((s) => (
           <button key={s} type="button" className={`zf-btn ${filter === s ? "" : "ghost"}`} style={{ minHeight: 32 }} onClick={() => setFilter(s)}>
             {s}
           </button>
@@ -400,8 +412,8 @@ export function CfgIntegrations() {
 
 export function CfgRoles() {
   return (
-    <Studio kicker="Access" title="Roles / flags (not an auth system)">
-      <p className="mt-2 text-sm">Documented surfaces only. Login is a local role switch.</p>
+    <Studio kicker="Access" title="Roles / flags — local demo switch only">
+      <p className="mt-2 text-sm">Production authentication is not configured. This table documents surfaces. It does not authorize anything.</p>
       <table className="zf-table mt-4">
         <tbody>
           <tr><td>passenger</td><td>book / live / share / trips</td></tr>
@@ -410,6 +422,7 @@ export function CfgRoles() {
           <tr><td>admin</td><td>studios / finance</td></tr>
         </tbody>
       </table>
+      <p className="mt-3 text-sm text-[var(--warn)]">Unavailable: SSO, RBAC persist, session tokens. productionPersist throws.</p>
     </Studio>
   );
 }
@@ -449,42 +462,52 @@ export function CfgAudit() {
 }
 
 export function FinPayments() {
-  const { bookings } = useStore();
-  const [id, setId] = useState(bookings[0]?.id);
-  const b = bookings.find((x) => x.id === id) ?? bookings[0];
+  const { bookings, domain, setPaymentStatus } = useStore();
+  const rows = seedPaymentsFromBookings(bookings, domain.payments);
+  const [id, setId] = useState(rows[0]?.id);
+  const row = rows.find((x) => x.id === id) ?? rows[0];
+  const states: PaymentState[] = ["authorized", "captured", "failed", "refunded", "partially_refunded", "voided"];
   return (
-    <Studio kicker="Payments" title="Authorizations / captures">
+    <Studio kicker="Payments" title="Demo inspector · production PSP unconfigured">
+      <p className="mt-2 text-sm">States are labeled demo. Production authorize/capture/refund throws until credentials exist.</p>
       <div className="mt-4 overflow-x-auto">
         <table className="zf-table">
           <thead>
             <tr>
-              <th>Txn</th>
+              <th>Id</th>
               <th>Booking</th>
               <th>Customer</th>
               <th>Method</th>
-              <th>Auth</th>
-              <th>Capture</th>
+              <th>Status</th>
               <th>Amount</th>
+              <th>Source</th>
             </tr>
           </thead>
           <tbody>
-            {bookings.map((row) => (
-              <tr key={row.id} onClick={() => setId(row.id)} className={id === row.id ? "text-[var(--signal)]" : ""}>
-                <td>sim-auth-{row.id}</td>
-                <td>{row.id}</td>
-                <td>{row.passengerName}</td>
-                <td>{row.payment}</td>
-                <td>authorized</td>
-                <td>{row.status === "cancelled" ? "voided" : "captured"}</td>
-                <td>{row.price}</td>
+            {rows.map((r) => (
+              <tr key={r.id} onClick={() => setId(r.id)} className={id === r.id ? "text-[var(--signal)]" : ""}>
+                <td>{r.id}</td>
+                <td>{r.bookingId}</td>
+                <td>{r.customer}</td>
+                <td>{r.method}</td>
+                <td>{r.status}</td>
+                <td>{r.amount}</td>
+                <td>{r.source}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {b ? (
+      {row ? (
         <div className="zf-panel mt-4 p-4 text-sm">
-          Inspector · {b.id} · provider simulation · no card secrets · {b.status}
+          Inspector · {row.id} · {row.provider} · {row.timestamp} · no card secrets
+          <div className="mt-2 flex flex-wrap gap-2">
+            {states.map((s) => (
+              <button key={s} type="button" className="zf-btn ghost" data-testid={`pay-${s}`} style={{ minHeight: 32 }} onClick={() => setPaymentStatus(row.id, s)}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
     </Studio>
@@ -557,27 +580,34 @@ export function FinSettle() {
 }
 
 export function FinWallet() {
-  const { bookings, user } = useStore();
-  const rows = [
-    { type: "credit", ref: "opening", amount: user?.wallet.TWD ?? 12600 },
-    ...bookings.slice(0, 8).map((b) => ({ type: b.status === "cancelled" ? "refund" : "debit", ref: b.id, amount: b.status === "cancelled" ? b.price : -b.price })),
-  ];
+  const { bookings, domain } = useStore();
+  const rows = seedWalletFromBookings(bookings, domain.wallet);
+  const totals = financeTotals(seedPaymentsFromBookings(bookings, domain.payments), rows);
   return (
-    <Studio kicker="Wallet ledger" title="Credits, debits, refunds">
+    <Studio kicker="Wallet ledger" title="Typed transactions">
+      <div className="mt-3 zf-panel p-3" data-testid="finance-totals">
+        Derived · captured NT${totals.captured.toLocaleString()} · refunded NT${totals.refunded.toLocaleString()} · wallet NT${totals.walletBalance.toLocaleString()} · {totals.walletCount} tx
+      </div>
       <table className="zf-table mt-4">
         <thead>
           <tr>
+            <th>Id</th>
+            <th>Booking</th>
             <th>Type</th>
-            <th>Ref</th>
             <th>Amount</th>
+            <th>Status</th>
+            <th>Source</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.id}</td>
+              <td>{r.bookingId ?? r.reference}</td>
               <td>{r.type}</td>
-              <td>{r.ref}</td>
-              <td>{r.amount}</td>
+              <td>{r.amount} {r.currency}</td>
+              <td>{r.status}</td>
+              <td>{r.source}</td>
             </tr>
           ))}
         </tbody>
@@ -587,15 +617,15 @@ export function FinWallet() {
 }
 
 export function FinRecon() {
-  const { bookings } = useStore();
-  const internal = bookings.reduce((s, b) => s + (b.status === "cancelled" ? 0 : b.price), 0);
-  const provider = internal;
+  const { bookings, domain } = useStore();
+  const pays = seedPaymentsFromBookings(bookings, domain.payments);
+  const totals = financeTotals(pays, domain.wallet);
   return (
-    <Studio kicker="Reconciliation" title="Internal vs provider">
+    <Studio kicker="Reconciliation" title="Internal ledger vs unconfigured provider">
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="zf-panel p-3"><div className="kicker">Internal</div><div className="zf-metric">NT${internal.toLocaleString()}</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Provider (sim)</div><div className="zf-metric">NT${provider.toLocaleString()}</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="zf-metric">0</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Internal captured</div><div className="zf-metric">NT${totals.captured.toLocaleString()}</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Provider</div><div className="text-sm">Not enough data — production PSP unconfigured</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="text-sm">Unknown until a provider feed exists</div></div>
       </div>
     </Studio>
   );
@@ -606,13 +636,17 @@ export function Crm360() {
   const [id, setId] = useState(passengers[0].id);
   const [tab, setTab] = useState("OVERVIEW");
   const [note, setNote] = useState("");
-  const p = passengers.find((x) => x.id === id) ?? passengers[0];
+  const extras = bookings
+    .filter((b) => !passengers.some((x) => x.id === b.passengerId))
+    .map((b) => ({ id: b.passengerId, name: b.passengerName, email: "demo@zoufeng.local", rfm: "new" as const, trips: 0, spendTwd: 0, lastDriverId: b.driverId, city: "Taipei", phone: "", points: 0 }));
+  const people = [...passengers, ...extras.filter((e, i, a) => a.findIndex((x) => x.id === e.id) === i)];
+  const p = people.find((x) => x.id === id) ?? people[0];
   const mine = bookings.filter((b) => b.passengerId === p.id);
   return (
     <Studio kicker="CRM 360" title={p.name}>
       <div className="mt-2 text-sm">{p.email} · {p.rfm} · {p.trips} rides · NT${p.spendTwd.toLocaleString()} · wallet on file · last driver {p.lastDriverId ?? "—"} (company-mediated)</div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {passengers.map((x) => (
+        {people.map((x) => (
           <button key={x.id} type="button" className={`zf-btn ${id === x.id ? "" : "ghost"}`} style={{ minHeight: 32 }} onClick={() => setId(x.id)}>
             {x.name}
           </button>
@@ -647,7 +681,18 @@ export function Crm360() {
           </tbody>
         </table>
       ) : null}
-      {tab === "PREFERRED DRIVERS" ? <p className="mt-4 text-sm">Preferred requests are company-mediated. See /ops/preferred.</p> : null}
+      {tab === "PREFERRED DRIVERS" ? (
+        <p className="mt-4 text-sm">
+          Preferred cases: {domain.preferredCases.filter((c) => c.customerId === p.id).length || "none on domain"}. Company-mediated only — /ops/preferred.
+        </p>
+      ) : null}
+      {tab === "PAYMENTS" ? (
+        <ul className="zf-stream mt-4">
+          {domain.payments.filter((n) => mine.some((b) => b.id === n.bookingId)).map((n) => (
+            <li key={n.id}>{n.id} · {n.status} · {n.amount} · {n.source}</li>
+          ))}
+        </ul>
+      ) : null}
       <div className="zf-panel mt-4 p-3">
         <div className="kicker">Case notes</div>
         {domain.notes.filter((n) => n.passengerId === p.id).map((n) => (

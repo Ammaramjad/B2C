@@ -8,12 +8,21 @@ import { money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 
 export function SignalWallet() {
-  const { user, bookings } = useStore();
-  const rows = bookings.slice(0, 6);
+  const { bookings, domain } = useStore();
+  const rows = domain.wallet.length ? domain.wallet : bookings.slice(0, 6).map((b) => ({
+    id: `seed_${b.id}`,
+    timestamp: b.createdAt,
+    bookingId: b.id,
+    type: b.status === "cancelled" ? "refund" : "debit",
+    amount: b.price,
+    currency: b.currency,
+    source: "seed" as const,
+  }));
+  const balance = rows.reduce((s, r) => s + (r.type === "debit" || r.type === "expiry" ? -Math.abs(r.amount) : r.amount), 0);
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="kicker">Wallet ledger</div>
-      <h1 className="display mt-2 text-5xl">NT${(user?.wallet.TWD ?? 12600).toLocaleString()}</h1>
+      <h1 className="display mt-2 text-5xl">NT${balance.toLocaleString()}</h1>
       <p className="mt-2 text-sm text-[var(--ink-2)]">Credits and trip debits. Not a marketing tile.</p>
       <table className="zf-table mt-6">
         <thead>
@@ -25,12 +34,12 @@ export function SignalWallet() {
           </tr>
         </thead>
         <tbody>
-          {rows.map((b) => (
-            <tr key={b.id}>
-              <td>{b.createdAt.slice(0, 10)}</td>
-              <td>{b.id}</td>
-              <td>{b.status === "cancelled" ? "Refund policy" : "Trip debit"}</td>
-              <td className="mono">{money(b.status === "cancelled" ? b.price : -b.price, b.currency)}</td>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.timestamp.slice(0, 10)}</td>
+              <td>{r.bookingId}</td>
+              <td>{r.type} · {r.source}</td>
+              <td className="mono">{money(r.type === "debit" ? -Math.abs(r.amount) : r.amount, "TWD")}</td>
             </tr>
           ))}
         </tbody>
