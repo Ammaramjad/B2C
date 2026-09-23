@@ -9,8 +9,8 @@ import type { DriverMarkerState, GeoPoint, LiveDriver } from "@/lib/live/types";
 import { useLive } from "@/lib/live/engine";
 
 const tiles = {
-  day: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  night: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  day: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  night: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
 };
 
 function pin(state: DriverMarkerState | "passenger" | "airport" | "incident") {
@@ -70,8 +70,8 @@ export function LiveMap({
 
   return (
     <div className="zf-map" style={{ height }}>
-      <MapContainer center={[25.05, 121.4]} zoom={11} zoomControl={false} attributionControl={false} className="h-full w-full">
-        <TileLayer url={tiles[mode]} />
+      <MapContainer center={[25.05, 121.4]} zoom={11} zoomControl={false} attributionControl={false} className="h-full w-full" style={{ height: "100%", minHeight: 320 }}>
+        <TileLayer url={tiles[mode]} attribution={mode === "day" ? "© OpenStreetMap" : "Esri"} />
         <Fit points={focus} />
         {route.length > 1 ? <Polyline positions={route} pathOptions={{ color: "#E31C23", weight: 4, opacity: 0.9 }} /> : null}
         {live.traffic === "heavy" && assigned ? (

@@ -136,15 +136,17 @@ export function PassengerLive() {
   const idx = phases.findIndex((p) => p.id === live.phase);
   return (
     <div className="relative min-h-[calc(100vh-56px)]">
-      <MapMount mode="day" height="100%" showFleet={false} />
-      <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-between px-4">
+      <div className="absolute inset-0">
+        <MapMount mode="day" height="100%" showFleet={false} />
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-3 z-[2000] flex justify-between px-4">
         <span className="zf-chip live">LIVE PICKUP</span>
         <div className="pointer-events-auto flex gap-2">
           <button className="zf-btn ghost">Share trip</button>
           <button className="zf-btn">SOS</button>
         </div>
       </div>
-      <div className="absolute inset-x-0 bottom-16 md:bottom-4">
+      <div className="absolute inset-x-0 bottom-16 z-[2000] md:bottom-4">
         <div className="mx-auto max-w-xl zf-panel p-4">
           <div className="flex justify-between gap-4">
             <div>

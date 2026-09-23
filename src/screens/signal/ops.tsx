@@ -38,7 +38,7 @@ export function CommandCenter() {
       <Counters />
       <div className="grid min-h-0 lg:grid-cols-[1fr_340px]">
         <MapMount mode="night" height="100%" />
-        <aside className="overflow-auto border-l border-[var(--line)] p-3">
+        <aside className="overflow-auto border-l border-[var(--line)] bg-[var(--paper)] p-3">
           <div className="flex gap-2 text-[11px]">
             {(["booking", "driver", "incident", "airport"] as const).map((t) => (
               <button key={t} onClick={() => setSel(t)} className={sel === t ? "text-[var(--signal)]" : "text-[var(--mute)]"}>

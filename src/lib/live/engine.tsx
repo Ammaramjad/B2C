@@ -54,10 +54,43 @@ function rank(drivers: LiveSnapshot["drivers"]): Candidate[] {
     .slice(0, 3);
 }
 
+const KEY = "zf-signal-live-v1";
+
 export function LiveProvider({ children }: { children: ReactNode }) {
   const [live, setLive] = useState<LiveSnapshot>(initialSnapshot);
   const tRef = useRef(0);
   const beat = useRef(0);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as LiveSnapshot & { beat?: number };
+        beat.current = parsed.beat ?? 0;
+        // Restore the shared scenario so /live and /ops stay on the same event tape.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from prototype event store
+        setLive({ ...parsed, playing: false });
+      }
+    } catch {
+      /* prototype store */
+    }
+    const on = (e: StorageEvent) => {
+      if (e.key !== KEY || !e.newValue) return;
+      const parsed = JSON.parse(e.newValue) as LiveSnapshot & { beat?: number };
+      beat.current = parsed.beat ?? beat.current;
+      setLive({ ...parsed, playing: false });
+    };
+    window.addEventListener("storage", on);
+    return () => window.removeEventListener("storage", on);
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ ...live, beat: beat.current, playing: false }));
+    } catch {
+      /* ignore */
+    }
+  }, [live]);
 
   const step = useCallback(() => {
     setLive((s) => {
@@ -229,7 +262,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         tRef.current = 0;
         seq = 1;
         const base = initialSnapshot();
-        setLive({ ...base, scenario: scenario ?? base.scenario, drivers: seedDrivers.map((d) => ({ ...d })) });
+        const next = { ...base, scenario: scenario ?? base.scenario, drivers: seedDrivers.map((d) => ({ ...d })) };
+        localStorage.removeItem(KEY);
+        setLive(next);
       },
       step,
       setScenario: (scenario) => {
