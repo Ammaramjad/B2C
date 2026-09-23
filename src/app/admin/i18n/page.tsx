@@ -1,7 +1,7 @@
 "use client";
 
-import { I18nAdmin } from "@/screens/admin/screens";
+import { CfgI18n } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <I18nAdmin />;
+  return <CfgI18n />;
 }

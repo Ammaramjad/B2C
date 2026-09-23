@@ -1,7 +1,7 @@
 "use client";
 
-import { FleetCompanies } from "@/screens/ops/screens";
+import { FleetCompaniesLive } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <FleetCompanies />;
+  return <FleetCompaniesLive />;
 }

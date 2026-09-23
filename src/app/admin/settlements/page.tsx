@@ -1,7 +1,7 @@
 "use client";
 
-import { SettlementsTable } from "@/screens/admin/screens";
+import { FinSettle } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <SettlementsTable />;
+  return <FinSettle />;
 }

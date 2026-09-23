@@ -1,7 +1,7 @@
 "use client";
 
-import { ReferralAdmin } from "@/screens/admin/screens";
+import { CrmGrowth } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <ReferralAdmin />;
+  return <CrmGrowth />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { NotifyAdmin } from "@/screens/admin/screens";
+import { CfgNotify } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <NotifyAdmin />;
+  return <CfgNotify />;
 }

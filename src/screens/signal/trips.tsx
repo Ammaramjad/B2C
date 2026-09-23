@@ -112,15 +112,20 @@ export function SignalAccount() {
       <div className="kicker">You</div>
       <h1 className="display mt-2 text-5xl">{user?.name ?? "Sarah Chen"}</h1>
       <div className="mt-6 grid gap-2">
-        <Link href="/preferred" className="zf-panel p-4">
-          Preferred drivers · company-mediated
-        </Link>
-        <Link href="/wallet" className="zf-panel p-4">
-          Wallet
-        </Link>
-        <Link href="/live" className="zf-panel p-4">
-          Live pickup {live.bookingId}
-        </Link>
+        {[
+          ["/preferred", "Preferred drivers · company-mediated"],
+          ["/wallet", "Wallet"],
+          ["/loyalty", "Points"],
+          ["/referral", "Referral"],
+          ["/inbox", "Notifications"],
+          ["/support", "Support"],
+          ["/planner", "Planner"],
+          ["/live", `Live pickup ${live.bookingId}`],
+        ].map(([h, l]) => (
+          <Link key={h} href={h} className="zf-panel p-4">
+            {l}
+          </Link>
+        ))}
       </div>
     </div>
   );

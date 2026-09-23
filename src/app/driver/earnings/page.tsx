@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverEarnings } from "@/screens/driver/screens";
+import { DriverMoney } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverEarnings />;
+  return <DriverMoney />;
 }

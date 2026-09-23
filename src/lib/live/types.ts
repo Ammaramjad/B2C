@@ -23,8 +23,14 @@ export type EventType =
   | "preferred.offer.accepted"
   | "preferred.confirmed"
   | "preferred.unavailable"
+  | "preferred.requested"
+  | "preferred.validated"
   | "notify.customer"
-  | "notify.ops";
+  | "notify.ops"
+  | "notification.created"
+  | "dispatch.candidates.updated"
+  | "refund.updated"
+  | "driver.duty.changed";
 
 export type Severity = "info" | "action" | "warning" | "critical";
 
@@ -93,6 +99,7 @@ export type LiveDriver = {
   etaMin: number;
   fleet: "A" | "B" | "C";
   onlineHours: number;
+  duty: "online" | "offline" | "busy" | "break";
 };
 
 export type Candidate = LiveDriver & { why: string[] };

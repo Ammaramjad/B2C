@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverHome } from "@/screens/signal/driver";
+import { DriverDutyHome } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverHome />;
+  return <DriverDutyHome />;
 }

@@ -165,6 +165,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .zf-stream { font-size: 12px; }
 .zf-stream li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.zf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.zf-table th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.zf-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.zf-rail { display: flex; flex-direction: column; gap: 2px; }
+.zf-spark { width: 100%; height: 72px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

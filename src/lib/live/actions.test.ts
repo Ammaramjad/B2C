@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyAcceptOffer, applyConfirmAirport, applyIncident, applyPreferredRequest, applyPreferredStatus, applySendOffer } from "./actions.ts";
+import { applyAcceptOffer, applyArrive, applyCompleteTrip, applyConfirmAirport, applyDuty, applyIncident, applyPreferredRequest, applyPreferredStatus, applySendOffer, applyVerifyOtp } from "./actions.ts";
 import { pickupBeat } from "./scenario.ts";
 import { initialSnapshot } from "./seed.ts";
 import { CUSTOMER_REASSIGN_COPY } from "./preferred.ts";
@@ -54,5 +54,23 @@ describe("incident to replacement", () => {
     assert.equal(s.preferred?.status, "confirmed");
     assert.equal(s.assignedId, "D-118");
     assert.ok(s.events.some((e) => e.type === "preferred.confirmed"));
+    assert.ok(s.events.some((e) => e.type === "preferred.requested"));
+  });
+});
+
+describe("duty and trip close", () => {
+  it("changes duty and completes only after matching OTP", () => {
+    resetEventSeq();
+    let s = initialSnapshot();
+    s = applyDuty(s, "D-118", "break");
+    assert.equal(s.drivers.find((d) => d.id === "D-118")?.duty, "break");
+    s = applyArrive(s);
+    assert.equal(s.phase, "arrived");
+    const fail = applyVerifyOtp(s, "0000");
+    assert.equal(fail.phase, "arrived");
+    s = applyVerifyOtp(s, s.otp);
+    assert.equal(s.phase, "trip_started");
+    s = applyCompleteTrip(s);
+    assert.equal(s.phase, "completed");
   });
 });

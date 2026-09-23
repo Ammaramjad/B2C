@@ -1,7 +1,7 @@
 "use client";
 
-import { IntegrationsAdmin } from "@/screens/admin/screens";
+import { CfgIntegrations } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <IntegrationsAdmin />;
+  return <CfgIntegrations />;
 }

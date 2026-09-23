@@ -296,7 +296,7 @@ export function DriverDirectory() {
           {live.drivers.map((d) => (
             <tr key={d.id} className="border-t border-[var(--line)]">
               <td className="py-2">
-                <Link href="/ops" className="underline">
+                <Link href={`/ops/drivers/${d.id}`} className="underline">
                   {d.name}
                 </Link>
                 <div className="text-[11px] text-[var(--mute)]">{d.id}</div>

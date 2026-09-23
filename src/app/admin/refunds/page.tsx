@@ -1,7 +1,7 @@
 "use client";
 
-import { RefundsTable } from "@/screens/admin/screens";
+import { FinRefunds } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <RefundsTable />;
+  return <FinRefunds />;
 }

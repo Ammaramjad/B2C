@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverPerformance } from "@/screens/signal/driver";
+import { DriverScore } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverPerformance />;
+  return <DriverScore />;
 }

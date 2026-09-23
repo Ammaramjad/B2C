@@ -1,7 +1,7 @@
 "use client";
 
-import { CancelPolicy } from "@/screens/admin/screens";
+import { CfgCancel } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <CancelPolicy />;
+  return <CfgCancel />;
 }

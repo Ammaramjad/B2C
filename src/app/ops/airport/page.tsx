@@ -1,7 +1,7 @@
 "use client";
 
-import { AirportOps } from "@/screens/signal/ops";
+import { AirportCommand } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <AirportOps />;
+  return <AirportCommand />;
 }

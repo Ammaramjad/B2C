@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { SignalLoyalty } from "@/screens/signal/life";
 
 export default function Page() {
-  redirect("/account");
+  return <SignalLoyalty />;
 }

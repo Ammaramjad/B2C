@@ -1,7 +1,7 @@
 "use client";
 
-import { ManualOrder } from "@/screens/ops/screens";
+import { ManualDesk } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <ManualOrder />;
+  return <ManualDesk />;
 }

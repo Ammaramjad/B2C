@@ -1,7 +1,7 @@
 "use client";
 
-import { PricingEngine } from "@/screens/admin/screens";
+import { CfgPricing } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <PricingEngine />;
+  return <CfgPricing />;
 }

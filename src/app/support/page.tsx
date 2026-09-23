@@ -1,7 +1,7 @@
 "use client";
 
-import { SupportScreen } from "@/screens/passenger/rest";
+import { SignalSupport } from "@/screens/signal/life";
 
 export default function Page() {
-  return <SupportScreen />;
+  return <SignalSupport />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { LoginScreen } from "@/screens/passenger/rest";
+import { SignalLogin } from "@/screens/signal/life";
 
 export default function Page() {
-  return <LoginScreen />;
+  return <SignalLogin />;
 }

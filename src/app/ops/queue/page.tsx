@@ -1,7 +1,7 @@
 "use client";
 
-import { QueuePage } from "@/screens/ops/screens";
+import { BookingQueue } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <QueuePage />;
+  return <BookingQueue />;
 }

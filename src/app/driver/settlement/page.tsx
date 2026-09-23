@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverSettlement } from "@/screens/driver/screens";
+import { DriverSettle } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverSettlement />;
+  return <DriverSettle />;
 }

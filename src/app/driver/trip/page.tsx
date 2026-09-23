@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { DriverJobFlow } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  redirect("/driver/run");
+  return <DriverJobFlow />;
 }

@@ -7,11 +7,9 @@ import "leaflet/dist/leaflet.css";
 import { TAIPEI_101, TPE_T1 } from "@/lib/live/geo";
 import type { DriverMarkerState, GeoPoint, LiveDriver } from "@/lib/live/types";
 import { useLive } from "@/lib/live/engine";
+import { resolveGeoProvider } from "@/lib/maps";
 
-const tiles = {
-  day: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  night: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-};
+const tiles = resolveGeoProvider("simulation").tiles;
 
 function pin(state: DriverMarkerState | "passenger" | "airport" | "incident") {
   const color =

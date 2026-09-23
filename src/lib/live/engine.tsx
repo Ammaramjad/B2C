@@ -5,12 +5,17 @@ import { useStore } from "../store";
 import {
   applyAcceptOffer,
   applyAck,
+  applyArrive,
+  applyCompleteTrip,
   applyConfirmAirport,
+  applyDuty,
   applyIncident,
+  applyNotify,
   applyPreferredRequest,
   applyPreferredStatus,
   applySendOffer,
   applySos,
+  applyVerifyOtp,
 } from "./actions";
 import { resetEventSeq } from "./events";
 import { animateTick, pickupBeat, preferredBeat } from "./scenario";
@@ -43,6 +48,11 @@ type LiveApi = {
     bookingId?: string;
     name?: string;
   }) => void;
+  setDuty: (driverId: string, duty: LiveSnapshot["drivers"][number]["duty"]) => void;
+  markArrived: () => void;
+  verifyOtp: (code: string) => boolean;
+  completeTrip: () => void;
+  notify: (title: string, body: string) => void;
 };
 
 const Ctx = createContext<LiveApi | null>(null);
@@ -61,7 +71,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(raw) as LiveSnapshot & { beat?: number };
         beat.current = parsed.beat ?? 0;
         // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate shared event tape
-        setLive({ ...parsed, playing: false });
+        setLive({
+          ...parsed,
+          playing: false,
+          drivers: (parsed.drivers ?? []).map((d) => ({ ...d, duty: d.duty ?? "online" })),
+        });
       }
     } catch {
       /* ignore */
@@ -136,6 +150,18 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       offerPreferred: () => setLive((s) => applyPreferredStatus(s, "offered")),
       acceptPreferred: () => setLive((s) => applyPreferredStatus(s, "confirmed")),
       confirmAirport: (input) => setLive((s) => applyConfirmAirport(s, input)),
+      setDuty: (driverId, duty) => setLive((s) => applyDuty(s, driverId, duty)),
+      markArrived: () => setLive((s) => applyArrive(s)),
+      verifyOtp: (code) => {
+        let ok = false;
+        setLive((s) => {
+          ok = code === s.otp;
+          return applyVerifyOtp(s, code);
+        });
+        return ok;
+      },
+      completeTrip: () => setLive((s) => applyCompleteTrip(s)),
+      notify: (title, body) => setLive((s) => applyNotify(s, title, body)),
     }),
     [live, step],
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { WalletLedger } from "@/screens/admin/screens";
+import { FinWallet } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <WalletLedger />;
+  return <FinWallet />;
 }

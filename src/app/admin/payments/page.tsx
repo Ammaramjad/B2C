@@ -1,7 +1,7 @@
 "use client";
 
-import { PaymentsTable } from "@/screens/admin/screens";
+import { FinPayments } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <PaymentsTable />;
+  return <FinPayments />;
 }

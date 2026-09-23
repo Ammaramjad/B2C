@@ -1,7 +1,7 @@
 "use client";
 
-import { PlannerScreen } from "@/screens/passenger/rest";
+import { SignalPlanner } from "@/screens/signal/life";
 
 export default function Page() {
-  return <PlannerScreen />;
+  return <SignalPlanner />;
 }

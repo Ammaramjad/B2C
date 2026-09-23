@@ -39,6 +39,7 @@ export function applyIncident(s: LiveSnapshot, category: string, note: string): 
         lng: d.loc.lng,
       }),
       makeEvent(s.clock, "dispatch.search.started", "action", ["ops"], "Replacement search", `${candidates.length} eligible nearby`),
+      makeEvent(s.clock, "dispatch.candidates.updated", "info", ["ops"], "Candidates ranked", candidates.map((c) => c.id).join(" · ")),
       ...s.events,
     ],
   };
@@ -127,6 +128,7 @@ export function applyPreferredRequest(s: LiveSnapshot, driverId: string): LiveSn
     preferred: { id: "PR-88", driverId, status: "requested", premiumPct: 18 },
     events: [
       makeEvent(s.clock, "preferred.request.created", "action", ["ops", "passenger"], "Preferred driver requested", "Request routed to Zoufeng — not a private booking"),
+      makeEvent(s.clock, "preferred.requested", "action", ["ops", "passenger"], "Preferred request received", "Company intermediary only"),
       ...s.events,
     ],
   };
@@ -142,7 +144,11 @@ export function applyPreferredStatus(
     return {
       ...s,
       preferred: next,
-      events: [makeEvent(s.clock, "preferred.request.validated", "info", ["ops"], "Company validation", "Availability, area, vehicle, schedule, premium, conflicts"), ...s.events],
+      events: [
+        makeEvent(s.clock, "preferred.request.validated", "info", ["ops"], "Company validation", "Availability, area, vehicle, schedule, premium, conflicts"),
+        makeEvent(s.clock, "preferred.validated", "info", ["ops"], "Preferred validated", "Company gate passed"),
+        ...s.events,
+      ],
     };
   }
   if (status === "offered") {
@@ -177,4 +183,49 @@ export function applyPreferredStatus(
     };
   }
   return { ...s, preferred: next };
+}
+
+export function applyDuty(s: LiveSnapshot, driverId: string, duty: LiveSnapshot["drivers"][number]["duty"]): LiveSnapshot {
+  return {
+    ...s,
+    drivers: s.drivers.map((d) =>
+      d.id === driverId
+        ? { ...d, duty, state: duty === "offline" ? "offline" : duty === "busy" ? "busy" : duty === "break" ? "offline" : "available" }
+        : d,
+    ),
+    events: [makeEvent(s.clock, "driver.duty.changed", "info", ["ops", "driver"], "Duty changed", `${driverId} · ${duty}`), ...s.events],
+  };
+}
+
+export function applyArrive(s: LiveSnapshot): LiveSnapshot {
+  return {
+    ...s,
+    phase: "arrived",
+    events: [makeEvent(s.clock, "booking.status.changed", "info", ["ops", "passenger"], "Driver arrived", s.pickup), ...s.events],
+  };
+}
+
+export function applyVerifyOtp(s: LiveSnapshot, code: string): LiveSnapshot {
+  if (code !== s.otp) return s;
+  return {
+    ...s,
+    phase: "trip_started",
+    events: [makeEvent(s.clock, "trip.started", "info", ["ops", "passenger", "driver"], "Passenger verified · trip started", `OTP ${code}`), ...s.events],
+    drivers: s.drivers.map((d) => (d.id === s.assignedId ? { ...d, state: "onboard" as const } : d)),
+  };
+}
+
+export function applyCompleteTrip(s: LiveSnapshot): LiveSnapshot {
+  return {
+    ...s,
+    phase: "completed",
+    events: [makeEvent(s.clock, "trip.completed", "info", ["ops", "passenger", "driver"], "Trip completed", s.bookingId), ...s.events],
+  };
+}
+
+export function applyNotify(s: LiveSnapshot, title: string, body: string): LiveSnapshot {
+  return {
+    ...s,
+    events: [makeEvent(s.clock, "notification.created", "info", ["passenger", "ops"], title, body), ...s.events],
+  };
 }

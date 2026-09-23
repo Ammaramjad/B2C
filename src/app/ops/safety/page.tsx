@@ -1,7 +1,7 @@
 "use client";
 
-import { SafetyDesk } from "@/screens/ops/screens";
+import { SafetyDeskLive } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <SafetyDesk />;
+  return <SafetyDeskLive />;
 }

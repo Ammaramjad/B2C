@@ -1,7 +1,7 @@
 "use client";
 
-import { AuditAdmin } from "@/screens/admin/screens";
+import { CfgAudit } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <AuditAdmin />;
+  return <CfgAudit />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { AnalyticsStudio } from "@/screens/admin/screens";
+import { RoleAnalytics } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <AnalyticsStudio />;
+  return <RoleAnalytics />;
 }

@@ -1,7 +1,12 @@
 "use client";
 
-import { AirportBook } from "@/screens/signal/passenger";
+import { Suspense } from "react";
+import { ServiceBook } from "@/screens/signal/services";
 
 export default function Page() {
-  return <AirportBook />;
+  return (
+    <Suspense fallback={<div className="p-6">Loading booking…</div>}>
+      <ServiceBook />
+    </Suspense>
+  );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { WalletScreen } from "@/screens/passenger/rest";
+import { SignalWallet } from "@/screens/signal/life";
 
 export default function Page() {
-  return <WalletScreen />;
+  return <SignalWallet />;
 }

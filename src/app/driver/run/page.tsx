@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverRun } from "@/screens/signal/driver";
+import { DriverJobFlow } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverRun />;
+  return <DriverJobFlow />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { DriverDocuments } from "@/screens/driver/screens";
+import { DriverDocs } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverDocuments />;
+  return <DriverDocs />;
 }

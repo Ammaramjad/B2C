@@ -1,7 +1,7 @@
 "use client";
 
-import { PromosAdmin } from "@/screens/admin/screens";
+import { CrmGrowth } from "@/screens/signal/platform";
 
 export default function Page() {
-  return <PromosAdmin />;
+  return <CrmGrowth />;
 }

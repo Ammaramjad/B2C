@@ -1,7 +1,7 @@
 "use client";
 
-import { SupportWorkspace } from "@/screens/ops/screens";
+import { SupportDesk } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <SupportWorkspace />;
+  return <SupportDesk />;
 }

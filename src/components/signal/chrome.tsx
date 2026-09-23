@@ -94,12 +94,13 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
         </Link>
       ) : null}
       <div className="px-4 pb-24">{children}</div>
-      <nav className="fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-4 border-t border-[var(--line)] bg-[var(--mist)] text-center text-[11px]">
+      <nav className="fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-5 border-t border-[var(--line)] bg-[var(--mist)] text-center text-[11px]">
         {[
           ["/driver", "Duty"],
           ["/driver/offer", "Offer"],
           ["/driver/run", "Job"],
           ["/driver/performance", "Stats"],
+          ["/driver/earnings", "Pay"],
         ].map(([h, l]) => (
           <Link key={h} href={h} className={`py-4 ${path === h ? "text-[var(--signal)]" : ""}`}>
             {l}
@@ -115,12 +116,19 @@ export function OpsChrome({ children }: { children: React.ReactNode }) {
   const { live } = useLive();
   const rail = [
     ["/ops", "Center"],
+    ["/ops/queue", "Queue"],
     ["/ops/dispatch", "Dispatch"],
     ["/ops/airport", "Airport"],
+    ["/ops/flights", "Flights"],
     ["/ops/incident", "Incident"],
     ["/ops/replace", "Replace"],
     ["/ops/drivers", "Drivers"],
     ["/ops/fleet", "Fleet"],
+    ["/ops/vehicles", "Vehicles"],
+    ["/ops/manual", "Manual"],
+    ["/ops/support", "Support"],
+    ["/ops/exceptions", "Pay/ex"],
+    ["/ops/safety", "Safety"],
   ];
   return (
     <div className="grid min-h-screen grid-cols-[76px_1fr]">
@@ -156,15 +164,65 @@ export function OpsChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminChrome({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const rail = [
+    ["/admin/services", "Services"],
+    ["/admin/vehicles", "Vehicles"],
+    ["/admin/capacity", "Capacity"],
+    ["/admin/pricing", "Pricing"],
+    ["/admin/dynamic", "Dynamic"],
+    ["/admin/airports", "Airport"],
+    ["/admin/cancellation", "Cancel"],
+    ["/admin/dispatch", "Dispatch"],
+    ["/admin/payments", "Pay"],
+    ["/admin/refunds", "Refunds"],
+    ["/admin/settlements", "Settle"],
+    ["/admin/wallet", "Wallet"],
+    ["/admin/recon", "Recon"],
+    ["/admin/crm", "CRM"],
+    ["/admin/promotions", "Growth"],
+    ["/admin/loyalty", "Loyalty"],
+    ["/admin/analytics", "Analytics"],
+    ["/admin/notifications", "Notify"],
+    ["/admin/i18n", "i18n"],
+    ["/admin/integrations", "Integrations"],
+    ["/admin/roles", "Roles"],
+    ["/admin/audit", "Audit"],
+  ];
+  return (
+    <div className="grid min-h-screen grid-cols-[140px_1fr]">
+      <aside className="border-r border-[var(--line)] bg-[var(--paper)]">
+        <Link href="/admin/services" className="block px-3 py-4 text-[10px] tracking-[0.14em]">
+          ZF CONFIG
+        </Link>
+        {rail.map(([h, l]) => (
+          <Link key={h} href={h} className={`block px-3 py-2 text-[11px] ${path === h ? "text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+            {l}
+          </Link>
+        ))}
+      </aside>
+      <div>
+        <header className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
+          <span className="kicker">Configuration · same product language</span>
+          <Director />
+        </header>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function SignalRoot({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const os = path.startsWith("/driver") ? "driver" : path.startsWith("/ops") ? "ops" : path.startsWith("/admin") ? "admin" : path.startsWith("/design") || path.startsWith("/demo") || path.startsWith("/login") ? "system" : "passenger";
+  const os = path.startsWith("/driver") ? "driver" : path.startsWith("/ops") ? "ops" : path.startsWith("/admin") ? "admin" : path.startsWith("/design") || path.startsWith("/demo") ? "system" : "passenger";
   return (
-    <div data-os={os === "admin" || os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os} className="min-h-screen">
+    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" ? "passenger" : os} className="min-h-screen">
       {os === "passenger" ? <PassengerChrome>{children}</PassengerChrome> : null}
       {os === "driver" ? <DriverChrome>{children}</DriverChrome> : null}
       {os === "ops" ? <OpsChrome>{children}</OpsChrome> : null}
-      {os === "admin" || os === "system" ? (
+      {os === "admin" ? <AdminChrome>{children}</AdminChrome> : null}
+      {os === "system" ? (
         <div>
           <header className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
             <Link href="/design" className="font-semibold">

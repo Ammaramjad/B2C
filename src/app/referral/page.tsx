@@ -1,7 +1,7 @@
 "use client";
 
-import { ReferralScreen } from "@/screens/passenger/rest";
+import { SignalReferral } from "@/screens/signal/life";
 
 export default function Page() {
-  return <ReferralScreen />;
+  return <SignalReferral />;
 }

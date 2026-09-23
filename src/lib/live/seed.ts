@@ -22,6 +22,7 @@ export const seedDrivers: LiveDriver[] = [
     etaMin: 24,
     fleet: "A",
     onlineHours: 6.4,
+    duty: "online",
   },
   {
     id: "D-221",
@@ -41,6 +42,7 @@ export const seedDrivers: LiveDriver[] = [
     etaMin: 4,
     fleet: "A",
     onlineHours: 5.1,
+    duty: "online",
   },
   {
     id: "D-308",
@@ -60,6 +62,7 @@ export const seedDrivers: LiveDriver[] = [
     etaMin: 9,
     fleet: "B",
     onlineHours: 4.2,
+    duty: "online",
   },
   {
     id: "D-204",
@@ -79,6 +82,7 @@ export const seedDrivers: LiveDriver[] = [
     etaMin: 31,
     fleet: "A",
     onlineHours: 7.8,
+    duty: "busy",
   },
   {
     id: "D-512",
@@ -98,6 +102,7 @@ export const seedDrivers: LiveDriver[] = [
     etaMin: 7,
     fleet: "A",
     onlineHours: 3.6,
+    duty: "online",
   },
 ];
 

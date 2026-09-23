@@ -1,7 +1,7 @@
 "use client";
 
-import { FlightBoard } from "@/screens/ops/screens";
+import { FlightOps } from "@/screens/signal/ops-desk";
 
 export default function Page() {
-  return <FlightBoard />;
+  return <FlightOps />;
 }

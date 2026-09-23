@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/live/*.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/live/*.test.ts src/lib/maps/*.test.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
