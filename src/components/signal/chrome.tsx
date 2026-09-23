@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useLive } from "@/lib/live/engine";
 
-function Director() {
+function Director({ compact = false }: { compact?: boolean }) {
   const { live, play, pause, reset, step, setScenario } = useLive();
+  const [open, setOpen] = useState(false);
+  if (compact && !open) {
+    return (
+      <button type="button" className="zf-chip live" onClick={() => setOpen(true)}>
+        SIM {live.clock}
+      </button>
+    );
+  }
   return (
-    <div className="flex items-center gap-2 text-[11px]">
+    <div className={`flex flex-wrap items-center gap-2 text-[11px] ${compact ? "w-full justify-end" : ""}`}>
+      {compact ? (
+        <button type="button" className="text-[var(--mute)]" onClick={() => setOpen(false)}>
+          Hide sim
+        </button>
+      ) : null}
       <span className="mono text-[var(--mute)]">{live.clock}</span>
       <span className="zf-chip live">{live.playing ? "LIVE" : "PAUSED"}</span>
       <button className="zf-btn" style={{ minHeight: 28, padding: "0 8px", fontSize: 11 }} onClick={live.playing ? pause : play}>
@@ -55,7 +69,12 @@ export function PassengerChrome({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <Director />
+        <div className="hidden md:block">
+          <Director />
+        </div>
+        <div className="md:hidden">
+          <Director compact />
+        </div>
       </header>
       {live.customerNotice ? (
         <div className="zf-alert">
@@ -80,13 +99,21 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
   const { live } = useLive();
   const onDuty = ["en_route_airport", "near_airport", "arrived", "waiting", "trip_started", "en_route_dest", "reassigned", "disrupted"].includes(live.phase);
   return (
-    <div className="mx-auto min-h-screen max-w-[430px] bg-[var(--mist)]">
+    <div className="min-h-screen bg-[var(--mist)] lg:grid lg:grid-cols-[1fr_430px]">
+      <div className="hidden border-r border-[var(--line)] lg:block">
+        <div className="p-6">
+          <div className="kicker">Driver desktop</div>
+          <h2 className="display mt-2 text-4xl">Stay on the assignment.</h2>
+          <p className="mt-3 max-w-md text-sm text-[var(--ink-2)]">Map and event tape stay on the left. Task controls stay in the column — no invented KPIs.</p>
+        </div>
+      </div>
+      <div className="mx-auto w-full max-w-[430px] lg:max-w-none">
       <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <div>
           <div className="kicker">Driver command</div>
           <div className="text-lg font-semibold">David / Jason</div>
         </div>
-        <Director />
+        <Director compact />
       </header>
       {onDuty ? (
         <Link href="/driver/incident" className="mx-4 mb-3 block bg-[var(--signal)] py-3 text-center text-sm font-bold text-white">
@@ -94,7 +121,7 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
         </Link>
       ) : null}
       <div className="px-4 pb-24">{children}</div>
-      <nav className="fixed bottom-0 left-1/2 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-5 border-t border-[var(--line)] bg-[var(--mist)] text-center text-[11px]">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-[var(--line)] bg-[var(--mist)] text-center text-[11px] lg:left-auto lg:w-[430px]">
         {[
           ["/driver", "Duty"],
           ["/driver/offer", "Offer"],
@@ -107,6 +134,7 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
           </Link>
         ))}
       </nav>
+      </div>
     </div>
   );
 }
@@ -129,9 +157,10 @@ export function OpsChrome({ children }: { children: React.ReactNode }) {
     ["/ops/support", "Support"],
     ["/ops/exceptions", "Pay/ex"],
     ["/ops/safety", "Safety"],
+    ["/ops/preferred", "Preferred"],
   ];
   return (
-    <div className="grid min-h-screen grid-cols-[76px_1fr]">
+    <div className="grid min-h-screen grid-cols-[64px_1fr] md:grid-cols-[76px_1fr]">
       <aside className="border-r border-[var(--line)] bg-[var(--paper)]">
         <Link href="/ops" className="block px-3 py-4">
           <span className="zf-pin" style={{ background: "var(--signal)", width: 16, height: 16 }} />
@@ -191,8 +220,8 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
     ["/admin/audit", "Audit"],
   ];
   return (
-    <div className="grid min-h-screen grid-cols-[140px_1fr]">
-      <aside className="border-r border-[var(--line)] bg-[var(--paper)]">
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[140px_1fr]">
+      <aside className="hidden border-r border-[var(--line)] bg-[var(--paper)] md:block">
         <Link href="/admin/services" className="block px-3 py-4 text-[10px] tracking-[0.14em]">
           ZF CONFIG
         </Link>
@@ -202,11 +231,18 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
           </Link>
         ))}
       </aside>
-      <div>
+      <div className="min-w-0">
         <header className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
-          <span className="kicker">Configuration · same product language</span>
-          <Director />
+          <span className="kicker">Configuration · Signal OS</span>
+          <Director compact />
         </header>
+        <div className="flex gap-2 overflow-x-auto border-b border-[var(--line)] px-3 py-2 md:hidden">
+          {rail.map(([h, l]) => (
+            <Link key={h} href={h} className={`shrink-0 text-[11px] ${path === h ? "text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+              {l}
+            </Link>
+          ))}
+        </div>
         {children}
       </div>
     </div>

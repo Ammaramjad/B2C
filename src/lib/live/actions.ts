@@ -45,16 +45,59 @@ export function applyIncident(s: LiveSnapshot, category: string, note: string): 
   };
 }
 
-export function applySendOffer(s: LiveSnapshot, driverId: string): LiveSnapshot {
+export const OFFER_TTL_MS = 45_000;
+
+export function applySendOffer(s: LiveSnapshot, driverId: string, kind: NonNullable<LiveSnapshot["offerKind"]> = "replacement"): LiveSnapshot {
   const d = s.drivers.find((x) => x.id === driverId);
   return {
     ...s,
-    phase: "reassigning",
+    phase: kind === "replacement" ? "reassigning" : s.phase,
     offerTo: driverId,
+    offerKind: kind,
+    offerExpiresAt: Date.now() + OFFER_TTL_MS,
+    offerRemainSec: OFFER_TTL_MS / 1000,
     events: [
-      makeEvent(s.clock, "dispatch.offer.sent", "action", ["driver", "ops"], "Replacement offer sent", `${d?.name ?? driverId} · urgent · company-issued`),
+      makeEvent(s.clock, "dispatch.offer.sent", "action", ["driver", "ops"], kind === "replacement" ? "Replacement offer sent" : "Company offer sent", `${d?.name ?? driverId} · ${kind} · ${OFFER_TTL_MS / 1000}s`),
       ...s.events,
     ],
+  };
+}
+
+export function applyRejectOffer(s: LiveSnapshot, driverId?: string): LiveSnapshot {
+  const id = driverId ?? s.offerTo ?? s.assignedId ?? s.drivers[0]?.id;
+  if (!id) return s;
+  const rejects = { ...s.rejects, [id]: (s.rejects[id] ?? 0) + 1 };
+  return {
+    ...s,
+    offerTo: s.offerTo === id ? null : s.offerTo,
+    offerKind: s.offerTo === id ? null : s.offerKind,
+    offerExpiresAt: s.offerTo === id ? null : s.offerExpiresAt,
+    offerRemainSec: s.offerTo === id ? null : s.offerRemainSec,
+    rejects,
+    events: [
+      makeEvent(s.clock, "dispatch.offer.rejected", "warning", ["ops", "driver"], "Offer rejected", `${id} · ${s.bookingId} · rejects ${rejects[id]}`),
+      ...s.events,
+    ],
+  };
+}
+
+export function applyExpireOffer(s: LiveSnapshot): LiveSnapshot {
+  if (!s.offerTo || !s.offerExpiresAt || s.offerExpiresAt > Date.now()) return s;
+  return {
+    ...s,
+    offerTo: null,
+    offerKind: null,
+    offerExpiresAt: null,
+    offerRemainSec: 0,
+    events: [makeEvent(s.clock, "dispatch.offer.expired", "warning", ["ops", "driver"], "Offer expired", s.bookingId), ...s.events],
+  };
+}
+
+export function applyShareTrip(s: LiveSnapshot, token: string): LiveSnapshot {
+  return {
+    ...s,
+    shareToken: token,
+    events: [makeEvent(s.clock, "trip.shared", "info", ["passenger", "ops"], "Trip share link created", token), ...s.events],
   };
 }
 
@@ -69,6 +112,9 @@ export function applyAcceptOffer(s: LiveSnapshot): LiveSnapshot {
     assignedId: next,
     replacementId: next,
     offerTo: null,
+    offerKind: null,
+    offerExpiresAt: null,
+    offerRemainSec: null,
     customerNotice: CUSTOMER_REASSIGN_COPY,
     traffic: "clear",
     trafficNote: "Replacement driver en route. Assignment is company-owned.",
@@ -125,7 +171,15 @@ export function applyPreferredRequest(s: LiveSnapshot, driverId: string): LiveSn
   return {
     ...s,
     scenario: "preferred",
-    preferred: { id: "PR-88", driverId, status: "requested", premiumPct: 18 },
+    preferred: {
+      id: `PR-${String(s.events.length + 88)}`,
+      driverId,
+      customer: s.passenger,
+      status: "requested",
+      premiumPct: 18,
+      service: "airport_pickup",
+      schedule: `${s.flight} · ${s.clock}`,
+    },
     events: [
       makeEvent(s.clock, "preferred.request.created", "action", ["ops", "passenger"], "Preferred driver requested", "Request routed to Zoufeng — not a private booking"),
       makeEvent(s.clock, "preferred.requested", "action", ["ops", "passenger"], "Preferred request received", "Company intermediary only"),
@@ -182,6 +236,14 @@ export function applyPreferredStatus(
       ],
     };
   }
+  if (status === "declined") {
+    return {
+      ...s,
+      preferred: next,
+      customerNotice: "Preferred request declined. Company will assign the next eligible vehicle.",
+      events: [makeEvent(s.clock, "preferred.declined", "warning", ["ops", "passenger"], "Preferred declined", "Company decision — no private booking"), ...s.events],
+    };
+  }
   return { ...s, preferred: next };
 }
 
@@ -220,6 +282,33 @@ export function applyCompleteTrip(s: LiveSnapshot): LiveSnapshot {
     ...s,
     phase: "completed",
     events: [makeEvent(s.clock, "trip.completed", "info", ["ops", "passenger", "driver"], "Trip completed", s.bookingId), ...s.events],
+  };
+}
+
+export function applyBindBooking(
+  s: LiveSnapshot,
+  input: { bookingId: string; service: string; pickup: string; dropoff: string; fare: number; flight?: string; name?: string; chauffeur: boolean },
+): LiveSnapshot {
+  if (!input.chauffeur) {
+    return {
+      ...s,
+      events: [makeEvent(s.clock, "booking.created", "action", ["ops", "passenger"], `${input.service} reserved`, `${input.bookingId} · depot / no live chauffeur`), ...s.events],
+    };
+  }
+  return {
+    ...s,
+    bookingId: input.bookingId,
+    pickup: input.pickup,
+    dropoff: input.dropoff,
+    fare: input.fare,
+    flight: input.flight ?? s.flight,
+    passenger: input.name ?? s.passenger,
+    phase: "booked",
+    events: [
+      makeEvent(s.clock, "booking.created", "action", ["ops", "passenger"], `${input.service} confirmed`, input.bookingId),
+      makeEvent(s.clock, "payment.updated", "info", ["passenger"], "Payment confirmed", `NT$${input.fare.toLocaleString()}`),
+      ...s.events,
+    ],
   };
 }
 

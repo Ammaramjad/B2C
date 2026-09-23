@@ -177,25 +177,40 @@ export function AirportBook() {
 }
 
 export function PassengerLive() {
-  const { live, triggerSos } = useLive();
+  const { live, triggerSos, shareTrip } = useLive();
+  const [shareMsg, setShareMsg] = useState("");
   const d = live.drivers.find((x) => x.id === live.assignedId);
   const idx = phases.findIndex((p) => p.id === live.phase);
+  async function onShare() {
+    const token = shareTrip();
+    const url = `${window.location.origin}/share/${token}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Zoufeng trip", url });
+      else await navigator.clipboard.writeText(url);
+      setShareMsg(`Share link ready · ${url}`);
+    } catch {
+      setShareMsg(url);
+    }
+  }
   return (
     <div className="relative min-h-[calc(100vh-56px)]">
       <div className="absolute inset-0">
         <MapMount mode="day" height="100%" showFleet={false} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-[2000] flex justify-between px-4">
+      <div className="pointer-events-none absolute inset-x-0 top-14 z-[2000] flex justify-between px-4 md:top-3">
         <span className="zf-chip live">LIVE PICKUP</span>
         <div className="pointer-events-auto flex gap-2">
-          <button className="zf-btn ghost">Share trip</button>
+          <button type="button" className="zf-btn ghost" data-testid="share-trip" onClick={() => void onShare()}>
+            Share trip
+          </button>
           <button className="zf-btn" onClick={triggerSos}>
             SOS
           </button>
         </div>
       </div>
-      <div className="absolute inset-x-0 bottom-16 z-[2000] md:bottom-4">
+      <div className="absolute inset-x-0 bottom-20 z-[2000] md:bottom-4">
         <div className="mx-auto max-w-xl zf-panel p-4">
+          {shareMsg ? <p className="mb-2 text-xs text-[var(--signal)]">{shareMsg}</p> : null}
           <div className="flex justify-between gap-4">
             <div>
               <div className="kicker">{live.bookingId} · {live.flight}</div>
@@ -237,26 +252,9 @@ export function PassengerLive() {
 }
 
 export function PreferredDrivers() {
-  const { live, requestPreferred, validatePreferred, rejectPreferred, offerPreferred, acceptPreferred } = useLive();
+  const { live, requestPreferred } = useLive();
   const david = live.drivers[0];
   const st = live.preferred?.status;
-
-  async function companyValidate() {
-    const res = await fetch("/api/preferred/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        klass: david.klass,
-        pax: 5,
-        bags: 4,
-        premiumPct: live.preferred?.premiumPct ?? 18,
-        available: david.state === "available" || david.state === "to_pickup",
-      }),
-    });
-    const data = (await res.json()) as { ok: boolean };
-    if (data.ok) validatePreferred();
-    else rejectPreferred();
-  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -291,21 +289,10 @@ export function PreferredDrivers() {
             </li>
           ))}
         </ol>
-        {st === "requested" ? (
-          <button type="button" className="zf-btn mt-3" data-testid="preferred-validate" onClick={() => void companyValidate()}>
-            Company validate
-          </button>
-        ) : null}
-        {st === "validating" ? (
-          <button type="button" className="zf-btn mt-3" data-testid="preferred-offer" onClick={offerPreferred}>
-            Issue company offer
-          </button>
-        ) : null}
-        {st === "offered" ? (
-          <button type="button" className="zf-btn mt-3" data-testid="preferred-accept" onClick={acceptPreferred}>
-            David accepts (driver app)
-          </button>
-        ) : null}
+        <p className="mt-3 text-sm text-[var(--ink-2)]">Company validation and the official offer happen on the operations preferred queue — not on this passenger screen.</p>
+        <Link href="/ops/preferred" className="zf-btn ghost mt-3" data-testid="preferred-ops-link">
+          Open company queue
+        </Link>
         {st === "confirmed" ? <p className="mt-3 font-semibold">{live.customerNotice}</p> : null}
       </div>
     </div>

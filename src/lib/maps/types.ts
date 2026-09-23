@@ -13,4 +13,5 @@ export type GeoProvider = {
   route(from: GeoPoint, to: GeoPoint): Promise<RouteResult>;
   eta(from: GeoPoint, to: GeoPoint): Promise<{ km: number; etaMin: number; source: GeoProviderId }>;
   traffic(): Promise<TrafficResult>;
+  roadIncidents(): Promise<{ id: string; note: string; source: GeoProviderId }[]>;
 };

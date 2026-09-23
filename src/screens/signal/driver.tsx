@@ -41,15 +41,23 @@ export function DriverHome() {
   );
 }
 
+function formatRemain(sec: number | null) {
+  if (sec == null) return "—";
+  const s = Math.max(0, sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 export function DriverOffer() {
-  const { live, acceptReplacement } = useLive();
-  const urgent = live.phase === "reassigning";
+  const { live, acceptReplacement, acceptPreferred, rejectOffer } = useLive();
+  const urgent = live.phase === "reassigning" || live.offerKind === "replacement";
+  const preferred = live.offerKind === "preferred" || live.preferred?.status === "offered";
   const router = useRouter();
+  const remain = live.offerRemainSec;
   return (
     <div className="space-y-3">
       <div className="flex justify-between">
-        <div className="kicker">{urgent ? "Urgent replacement" : "Incoming offer"}</div>
-        <div className="zf-metric text-5xl text-[var(--signal)]">0:18</div>
+        <div className="kicker">{urgent ? "Urgent replacement" : preferred ? "Preferred company offer" : "Incoming offer"}</div>
+        <div className="zf-metric text-5xl text-[var(--signal)]">{formatRemain(remain)}</div>
       </div>
       <div className="zf-panel p-4">
         <div className="zf-chip crit">{live.bookingId}</div>
@@ -62,7 +70,16 @@ export function DriverOffer() {
         </dl>
       </div>
       <div className="grid grid-cols-[1fr_1.3fr] gap-2">
-        <button className="zf-btn ghost" style={{ minHeight: 72 }} onClick={() => router.push("/driver")}>
+        <button
+          type="button"
+          className="zf-btn ghost"
+          data-testid="reject-offer"
+          style={{ minHeight: 72 }}
+          onClick={() => {
+            rejectOffer();
+            router.push("/driver");
+          }}
+        >
           Reject
         </button>
         <button
@@ -71,7 +88,8 @@ export function DriverOffer() {
           data-testid="accept-offer"
           style={{ minHeight: 72, fontSize: 20 }}
           onClick={() => {
-            if (urgent) acceptReplacement();
+            if (preferred) acceptPreferred();
+            else if (urgent || live.offerTo) acceptReplacement();
             router.push("/driver/run");
           }}
         >
@@ -84,6 +102,7 @@ export function DriverOffer() {
 
 export function DriverRun() {
   const { live } = useLive();
+  const router = useRouter();
   const d = live.drivers.find((x) => x.id === live.assignedId) ?? live.drivers[0];
   const cta =
     live.phase === "arrived" || live.phase === "waiting"
@@ -103,7 +122,12 @@ export function DriverRun() {
           {live.flight} · {live.flightStatus} · {d.name}
         </p>
         <div className="zf-metric text-4xl">{live.etaMin} min · {live.distanceKm} km</div>
-        <button className="zf-btn wide" style={{ minHeight: 56 }}>
+        <button
+          type="button"
+          className="zf-btn wide"
+          style={{ minHeight: 56 }}
+          onClick={() => router.push("/driver/run")}
+        >
           {cta}
         </button>
       </div>

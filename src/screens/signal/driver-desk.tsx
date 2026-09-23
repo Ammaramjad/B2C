@@ -229,11 +229,16 @@ export function DriverDocs() {
 
 export function DriverScore() {
   const { live } = useLive();
-  const { bookings } = useStore();
+  const { bookings, domain } = useStore();
   const liveD = live.drivers[0];
+  const extras = {
+    rejects: live.rejects[liveD.id] ?? domain.rejects.filter((r) => r.driverId === liveD.id).length,
+    punctuality: domain.punctuality,
+    offersSent: live.events.filter((e) => e.type === "dispatch.offer.sent").length || undefined,
+  };
   const card = mergeScorecards(
-    scorecardFromCatalog(me, bookings, live.counters.incidents),
-    scorecardFromLive(liveD, live.incident && live.incident.driverId === liveD.id ? 1 : live.counters.incidents),
+    scorecardFromCatalog(me, bookings, live.counters.incidents, extras),
+    scorecardFromLive(liveD, live.incident && live.incident.driverId === liveD.id ? 1 : live.counters.incidents, extras),
   );
   const rows: [string, string][] = [
     ["Total rides", formatMetric(card.totalRides)],

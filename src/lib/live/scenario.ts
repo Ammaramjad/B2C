@@ -198,7 +198,7 @@ export function preferredBeat(s: LiveSnapshot, n: number): LiveSnapshot {
     return {
       ...s,
       clock,
-      preferred: { id: "PR-88", driverId: "D-118", status: "requested", premiumPct: 18 },
+      preferred: { id: "PR-88", driverId: "D-118", customer: s.passenger, status: "requested", premiumPct: 18 },
       events: [makeEvent(clock, "preferred.request.created", "action", ["ops", "passenger"], "Sarah requested David Chen", "Company intermediary — no private contact"), ...s.events],
     };
   }

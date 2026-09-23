@@ -9,7 +9,10 @@ export type EventType =
   | "dispatch.search.started"
   | "dispatch.offer.sent"
   | "dispatch.offer.accepted"
+  | "dispatch.offer.rejected"
+  | "dispatch.offer.expired"
   | "dispatch.reassigned"
+  | "trip.shared"
   | "flight.status.changed"
   | "eta.updated"
   | "traffic.incident.detected"
@@ -25,6 +28,7 @@ export type EventType =
   | "preferred.unavailable"
   | "preferred.requested"
   | "preferred.validated"
+  | "preferred.declined"
   | "notify.customer"
   | "notify.ops"
   | "notification.created"
@@ -121,8 +125,11 @@ export type Incident = {
 export type PreferredRequest = {
   id: string;
   driverId: string;
-  status: "draft" | "requested" | "validating" | "offered" | "confirmed" | "unavailable";
+  customer: string;
+  status: "draft" | "requested" | "validating" | "offered" | "confirmed" | "unavailable" | "declined";
   premiumPct: number;
+  service?: string;
+  schedule?: string;
 };
 
 export type LiveSnapshot = {
@@ -153,8 +160,13 @@ export type LiveSnapshot = {
   incident: Incident | null;
   candidates: Candidate[];
   offerTo: string | null;
+  offerExpiresAt: number | null;
+  offerRemainSec: number | null;
+  offerKind: "assignment" | "replacement" | "preferred" | null;
   customerNotice: string | null;
   preferred: PreferredRequest | null;
+  shareToken: string | null;
+  rejects: Record<string, number>;
   counters: {
     active: number;
     unassigned: number;

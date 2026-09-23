@@ -2,18 +2,23 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useStore } from "../store";
+import { phaseToStatus } from "../domain/booking";
 import {
   applyAcceptOffer,
   applyAck,
   applyArrive,
+  applyBindBooking,
   applyCompleteTrip,
   applyConfirmAirport,
   applyDuty,
+  applyExpireOffer,
   applyIncident,
   applyNotify,
   applyPreferredRequest,
   applyPreferredStatus,
+  applyRejectOffer,
   applySendOffer,
+  applyShareTrip,
   applySos,
   applyVerifyOtp,
 } from "./actions";
@@ -48,6 +53,18 @@ type LiveApi = {
     bookingId?: string;
     name?: string;
   }) => void;
+  bindBooking: (input: {
+    bookingId: string;
+    service: string;
+    pickup: string;
+    dropoff: string;
+    fare: number;
+    flight?: string;
+    name?: string;
+    chauffeur: boolean;
+  }) => void;
+  rejectOffer: (driverId?: string) => void;
+  shareTrip: () => string;
   setDuty: (driverId: string, duty: LiveSnapshot["drivers"][number]["duty"]) => void;
   markArrived: () => void;
   verifyOtp: (code: string) => boolean;
@@ -59,7 +76,7 @@ const Ctx = createContext<LiveApi | null>(null);
 const KEY = "zf-signal-live-v2";
 
 export function LiveProvider({ children }: { children: ReactNode }) {
-  const { assignDriver, bookings } = useStore();
+  const { assignDriver, bookings, patchBooking, recordReject, createShare } = useStore();
   const [live, setLive] = useState<LiveSnapshot>(initialSnapshot);
   const tRef = useRef(0);
   const beat = useRef(0);
@@ -74,7 +91,15 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setLive({
           ...parsed,
           playing: false,
+          offerExpiresAt: parsed.offerExpiresAt ?? null,
+          offerRemainSec: parsed.offerRemainSec ?? null,
+          offerKind: parsed.offerKind ?? null,
+          shareToken: parsed.shareToken ?? null,
+          rejects: parsed.rejects ?? {},
           drivers: (parsed.drivers ?? []).map((d) => ({ ...d, duty: d.duty ?? "online" })),
+          preferred: parsed.preferred
+            ? { ...parsed.preferred, customer: parsed.preferred.customer ?? parsed.passenger }
+            : null,
         });
       }
     } catch {
@@ -107,10 +132,25 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!live.bookingId || !live.assignedId) return;
+    if (!live.bookingId) return;
     const b = bookings.find((x) => x.id === live.bookingId);
-    if (b && b.driverId !== live.assignedId) assignDriver(live.bookingId, live.assignedId);
-  }, [assignDriver, bookings, live.assignedId, live.bookingId]);
+    const status = phaseToStatus(live.phase);
+    if (!b) return;
+    if (live.assignedId && b.driverId !== live.assignedId) assignDriver(live.bookingId, live.assignedId);
+    if (b.status !== status && b.status !== "cancelled") patchBooking(live.bookingId, { status, driverId: live.assignedId ?? b.driverId, pickup: live.pickup, dropoff: live.dropoff, flight: live.flight, price: live.fare || b.price });
+  }, [assignDriver, bookings, live.assignedId, live.bookingId, live.dropoff, live.fare, live.flight, live.phase, live.pickup, patchBooking]);
+
+  useEffect(() => {
+    if (!live.offerExpiresAt) return;
+    const id = window.setInterval(() => {
+      setLive((s) => {
+        const next = applyExpireOffer(s);
+        if (!next.offerExpiresAt) return next;
+        return { ...next, offerRemainSec: Math.max(0, Math.ceil((next.offerExpiresAt - Date.now()) / 1000)) };
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [live.offerExpiresAt]);
 
   useEffect(() => {
     if (!live.playing) return;
@@ -140,14 +180,31 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setLive({ ...initialSnapshot(), scenario });
       },
       reportIncident: (category, note) => setLive((s) => applyIncident(s, category, note)),
-      sendReplacement: (driverId) => setLive((s) => applySendOffer(s, driverId)),
+      sendReplacement: (driverId) => setLive((s) => applySendOffer(s, driverId, "replacement")),
       acceptReplacement: () => setLive((s) => applyAcceptOffer(s)),
+      rejectOffer: (driverId) =>
+        setLive((s) => {
+          const next = applyRejectOffer(s, driverId);
+          recordReject(driverId ?? s.offerTo ?? s.assignedId ?? "D-118", s.bookingId);
+          return next;
+        }),
+      shareTrip: () => {
+        const rec = createShare(live.bookingId);
+        setLive((s) => applyShareTrip(s, rec.token));
+        return rec.token;
+      },
+      bindBooking: (input) => setLive((s) => applyBindBooking(s, input)),
       ackIncident: () => setLive((s) => applyAck(s)),
       triggerSos: () => setLive((s) => applySos(s)),
       requestPreferred: (id) => setLive((s) => applyPreferredRequest(s, id)),
       validatePreferred: () => setLive((s) => applyPreferredStatus(s, "validating")),
-      rejectPreferred: () => setLive((s) => applyPreferredStatus(s, "unavailable")),
-      offerPreferred: () => setLive((s) => applyPreferredStatus(s, "offered")),
+      rejectPreferred: () => setLive((s) => applyPreferredStatus(s, "declined")),
+      offerPreferred: () =>
+        setLive((s) => {
+          const next = applyPreferredStatus(s, "offered");
+          if (!next.preferred) return next;
+          return applySendOffer(next, next.preferred.driverId, "preferred");
+        }),
       acceptPreferred: () => setLive((s) => applyPreferredStatus(s, "confirmed")),
       confirmAirport: (input) => setLive((s) => applyConfirmAirport(s, input)),
       setDuty: (driverId, duty) => setLive((s) => applyDuty(s, driverId, duty)),
@@ -163,7 +220,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       completeTrip: () => setLive((s) => applyCompleteTrip(s)),
       notify: (title, body) => setLive((s) => applyNotify(s, title, body)),
     }),
-    [live, step],
+    [createShare, live, recordReject, step],
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
