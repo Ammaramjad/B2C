@@ -5,12 +5,17 @@ import { loc } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
 const blocks = [
-  { href: "/", title: "Customer", titleZh: "乘客", items: "Search · Quote · Book · Pay · Track · Cancel · SOS · Loyalty · Planner" },
-  { href: "/me", title: "Passenger panel", titleZh: "會員中心", items: "Signup · Bookings · Saved cars · Wallet · Support" },
-  { href: "/driver", title: "Driver", titleZh: "司機", items: "Online · Grab · OTP · Nav · Earnings · Settlement · Docs" },
-  { href: "/ops", title: "Operations", titleZh: "調度", items: "Live map · Assign · Incidents · Flights · Queue" },
-  { href: "/admin", title: "Admin", titleZh: "管理", items: "RBAC · Pricing rules · Audit · Policies · Analytics" },
-  { href: "/cars", title: "Car marketplace", titleZh: "專車商城", items: "Taiwan transfers only — no hotels" },
+  { href: "/", title: "Home", titleZh: "首頁", items: "Search · services · routes · cars · cities · extras · reviews" },
+  { href: "/cars", title: "Marketplace", titleZh: "商城", items: "Filters · save · product pages" },
+  { href: "/airports", title: "Airports", titleZh: "機場", items: "TPE TSA RMQ KHH" },
+  { href: "/routes", title: "Routes", titleZh: "路線", items: "Airport ↔ city" },
+  { href: "/charter", title: "Charter", titleZh: "包車", items: "4–12h · 880×h" },
+  { href: "/rental", title: "Rental", titleZh: "租車", items: "Yaris · Cross · Sienta" },
+  { href: "/instant", title: "Taxi", titleZh: "計程", items: "Taxi Plus XL Black" },
+  { href: "/me", title: "Passenger panel", titleZh: "會員", items: "Signup · bookings · wallet" },
+  { href: "/driver", title: "Driver", titleZh: "司機", items: "Duty · grab · earnings" },
+  { href: "/ops", title: "Operations", titleZh: "調度", items: "Map · assign · SOS" },
+  { href: "/admin", title: "Admin", titleZh: "管理", items: "Rules · RBAC · audit" },
 ];
 
 export default function PlatformPage() {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { SiteFooter } from "@/components/site-footer";
 import { loc } from "@/lib/i18n";
 import type { Locale } from "@/lib/types";
 
@@ -38,11 +39,11 @@ function LocaleBar() {
 }
 
 const customer = [
-  ["/", "Go", "出發"],
+  ["/", "Home", "首頁"],
   ["/cars", "Cars", "專車"],
-  ["/live", "Live", "即時"],
-  ["/trips", "Trips", "行程"],
-  ["/me", "My panel", "會員"],
+  ["/airports", "Airports", "機場"],
+  ["/charter", "Charter", "包車"],
+  ["/me", "Account", "會員"],
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -111,7 +112,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className={`mx-auto w-full px-4 py-6 pb-24 ${ops || admin ? "max-w-[1400px]" : "max-w-7xl"}`}>{children}</main>
+      <main className={`mx-auto w-full px-4 py-6 pb-8 ${ops || admin ? "max-w-[1400px]" : "max-w-7xl"}`}>
+        {children}
+        {!desk && <SiteFooter />}
+      </main>
       {!desk && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] p-2 backdrop-blur-xl lg:hidden">
           {customer.map(([href, en, zh]) => (
