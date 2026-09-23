@@ -10,7 +10,7 @@ import { useStore } from "@/lib/store";
 import { Btn, Chip, Panel } from "@/components/ui";
 import type { ServiceType } from "@/lib/types";
 
-const services = [
+const services: { id: ServiceType; icon: typeof Plane; title: string; copy: string }[] = [
   { id: "airport", icon: Plane, title: "Airport orbit", copy: "Flight-aware meet, 60-min free wait, OTP boarding." },
   { id: "point", icon: Route, title: "Point to point", copy: "City vectors with live quote and capacity match." },
   { id: "charter", icon: Timer, title: "Charter hours", copy: "Half / full day, overtime and extra-mile pulses." },

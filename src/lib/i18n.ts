@@ -88,9 +88,9 @@ const dict = {
     when: "時間鎖",
     pay: "授權並發射",
   },
-} as const;
+};
 
-export type Dict = (typeof dict)["en"];
+export type Dict = typeof dict.en;
 
 export function t(locale: Locale): Dict {
   return dict[locale];
