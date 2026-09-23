@@ -2,43 +2,30 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { loc } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { Btn, Field, Panel } from "@/components/ui";
+import { Btn, Field } from "@/components/ui";
 import type { Role } from "@/lib/types";
 
 export default function LoginPage() {
-  const { login } = useStore();
-  const [email, setEmail] = useState("amara@zoufeng.travel");
+  const { login, locale } = useStore();
+  const [email, setEmail] = useState("amara@zoudian.travel");
   const router = useRouter();
-
-  function enter(role?: Role) {
+  function enter(role: Role) {
     login(email, role);
-    router.push(role === "driver" ? "/driver" : role === "ops" ? "/ops" : "/account");
+    router.push(role === "driver" ? "/driver" : role === "dispatcher" ? "/ops" : "/");
   }
-
   return (
-    <div className="mx-auto max-w-lg">
-      <Panel className="space-y-5">
-        <h1 className="display text-4xl">Enter the mesh</h1>
-        <p className="text-sm text-white/55">
-          JWT-style demo session. Phone/email identity. No password — this is a preview of membership M08.
-        </p>
-        <Field label="Email or phone">
-          <input value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-        <div className="flex flex-wrap gap-3">
-          <Btn onClick={() => enter("passenger")}>Passenger</Btn>
-          <Btn kind="ghost" onClick={() => enter("driver")}>
-            Driver
-          </Btn>
-          <Btn kind="ghost" onClick={() => enter("ops")}>
-            Operations
-          </Btn>
-        </div>
-        <p className="text-xs text-white/40">
-          Hint: emails containing driver or ops auto-route. Quiet ride, AC 22°C and Orbit Business are preloaded.
-        </p>
-      </Panel>
+    <div className="mx-auto max-w-md space-y-5 py-10">
+      <h1 className="display text-4xl">{loc(locale, "Enter ZOUDIAN", "進入走癲")}</h1>
+      <p className="text-[var(--muted)]">{loc(locale, "Four experiences. Simulated sign-in for the design prototype.", "四個體驗。設計原型模擬登入。")}</p>
+      <Field label="Email"><input value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+      <div className="flex flex-wrap gap-2">
+        <Btn onClick={() => enter("passenger")}>{loc(locale, "Customer", "顧客")}</Btn>
+        <Btn kind="ghost" onClick={() => enter("driver")}>{loc(locale, "Driver", "司機")}</Btn>
+        <Btn kind="ghost" onClick={() => enter("dispatcher")}>{loc(locale, "Dispatch", "調度")}</Btn>
+        <Btn kind="ghost" onClick={() => { login(email, "ops"); router.push("/admin"); }}>{loc(locale, "Admin", "管理")}</Btn>
+      </div>
     </div>
   );
 }

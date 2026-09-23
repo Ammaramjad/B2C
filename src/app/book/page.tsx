@@ -2,224 +2,180 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { flights, vehicles } from "@/lib/data";
+import { extras as extraCat, promos, rentals, services, taxis, vehicles } from "@/lib/catalog";
+import { flights as flightDb } from "@/lib/data";
+import { loc } from "@/lib/i18n";
 import { convert, money, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
-import { t } from "@/lib/i18n";
-import { Btn, Field, Panel } from "@/components/ui";
-import type { ServiceType } from "@/lib/types";
-
-const services: { id: ServiceType; label: string }[] = [
-  { id: "airport", label: "Airport" },
-  { id: "point", label: "Point" },
-  { id: "charter", label: "Charter" },
-  { id: "taxi", label: "Taxi" },
-  { id: "rental", label: "Self-drive" },
-  { id: "designated", label: "Designated" },
-  { id: "experience", label: "Experience" },
-];
+import { LiveMap } from "@/components/live-map";
+import { Btn, Field, Status } from "@/components/ui";
 
 export default function BookPage() {
-  const { draft, setDraft, currency, placeBooking, locale } = useStore();
-  const d = t(locale);
+  const { draft, setDraft, currency, placeBooking, locale, lastDriverId } = useStore();
   const [step, setStep] = useState(1);
   const router = useRouter();
+  const zh = locale === "zh";
   const q = useMemo(
-    () =>
-      quote({
-        service: draft.service,
-        vehicle: draft.vehicle,
-        airport: draft.service === "airport",
-        hours: draft.hours,
-        preferredDriver: draft.preferredDriver,
-        night: draft.when?.includes("T22") || draft.when?.includes("T23"),
-      }),
+    () => quote({ service: draft.service, vehicle: draft.vehicle, extras: draft.extras, promo: draft.promo, when: draft.when, hours: draft.hours, days: draft.days }),
     [draft],
   );
-  const flight = flights[draft.flight];
-  const v = vehicles.find((x) => x.id === draft.vehicle)!;
-  const over = draft.luggage > v.luggage || draft.passengers > v.seats;
+  const fleet =
+    draft.service === "instant"
+      ? taxis.map((x) => ({ id: x.id, title: zh ? x.nameZh : x.name, sub: `ETA ${x.eta} min`, price: x.base, seats: 3, luggage: 2 }))
+      : draft.service === "rental"
+        ? rentals.map((x) => ({ id: x.id, title: x.name, sub: `${x.seats} seats`, price: x.day, seats: x.seats, luggage: 3 }))
+        : vehicles.map((x) => ({ id: x.id, title: `${x.name} · ${x.model}`, sub: `${x.seats} / ${x.luggage}`, price: x.base, seats: x.seats, luggage: x.luggage }));
+  const extraOk = extraCat.filter((e) => !e.only || e.only.includes(draft.service));
+  const flight = flightDb[draft.flight];
+  const tight = fleet.find((c) => c.id === draft.vehicle && (draft.passengers > c.seats || draft.luggage > c.luggage));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div>
-        <div className="mb-6 flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-white/45">
+    <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div className="space-y-6">
+        <div className="flex gap-2 text-sm text-[var(--muted)]">
           {[1, 2, 3].map((n) => (
+            <button key={n} onClick={() => setStep(n)} className={step === n ? "text-[var(--fg)]" : ""}>
+              {n === 1 ? loc(locale, "Trip", "行程") : n === 2 ? loc(locale, "Ride", "車款") : loc(locale, "Confirm", "確認")}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {services.map((s) => (
             <button
-              key={n}
-              onClick={() => setStep(n)}
-              className={`rounded-full px-3 py-1 ${step === n ? "bg-white/15 text-white" : ""}`}
+              key={s.id}
+              onClick={() => setDraft({ service: s.id, vehicle: s.id === "instant" ? "taxi" : s.id === "rental" ? "yaris" : "sedan" })}
+              className={`rounded-xl px-3 py-2 text-sm ${draft.service === s.id ? "bg-[var(--primary)] text-[var(--primary-ink)]" : "hairline"}`}
             >
-              0{n} {n === 1 ? d.step1 : n === 2 ? d.step2 : d.step3}
+              {zh ? s.zh : s.en}
             </button>
           ))}
         </div>
 
         {step === 1 && (
-          <Panel className="space-y-5">
-            <div className="flex flex-wrap gap-2">
-              {services.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setDraft({ service: s.id })}
-                  className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.16em] ${
-                    draft.service === s.id ? "bg-cyan-300 text-[#070014]" : "bg-white/5 text-white/60"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <Field label={d.pickup}>
-              <input value={draft.pickup} onChange={(e) => setDraft({ pickup: e.target.value })} />
-            </Field>
-            <Field label={d.drop}>
-              <input value={draft.dropoff} onChange={(e) => setDraft({ dropoff: e.target.value })} />
-            </Field>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={d.when}>
-                <input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ when: e.target.value })} />
+          <div className="space-y-4">
+            <Field label={loc(locale, "Pickup", "上車")}><input value={draft.pickup} onChange={(e) => setDraft({ pickup: e.target.value })} /></Field>
+            <Field label={loc(locale, "Destination", "下車")}><input value={draft.dropoff} onChange={(e) => setDraft({ dropoff: e.target.value })} /></Field>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label={loc(locale, "When", "時間")}><input type="datetime-local" value={draft.when} onChange={(e) => setDraft({ when: e.target.value })} /></Field>
+              <Field label={loc(locale, "Passengers / luggage", "人數／行李")}>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" min={1} value={draft.passengers} onChange={(e) => setDraft({ passengers: Number(e.target.value) })} />
+                  <input type="number" min={0} value={draft.luggage} onChange={(e) => setDraft({ luggage: Number(e.target.value) })} />
+                </div>
               </Field>
-              {draft.service === "airport" && (
-                <Field label="Flight vector">
-                  <input
-                    value={draft.flight}
-                    onChange={(e) => setDraft({ flight: e.target.value.toUpperCase() })}
-                    placeholder="CI101"
-                  />
-                </Field>
+              {draft.service.startsWith("airport") && (
+                <Field label={loc(locale, "Flight", "航班")}><input value={draft.flight} onChange={(e) => setDraft({ flight: e.target.value.toUpperCase() })} /></Field>
               )}
-              {(draft.service === "charter" || draft.service === "designated" || draft.service === "rental") && (
-                <Field label="Hours in orbit">
-                  <input
-                    type="number"
-                    min={2}
-                    max={12}
-                    value={draft.hours}
-                    onChange={(e) => setDraft({ hours: Number(e.target.value) })}
-                  />
-                </Field>
+              {draft.service === "hourly" && (
+                <Field label="Hours 4–12"><input type="number" min={4} max={12} value={draft.hours} onChange={(e) => setDraft({ hours: Number(e.target.value) })} /></Field>
+              )}
+              {draft.service === "rental" && (
+                <Field label="Days 1–14"><input type="number" min={1} max={14} value={draft.days} onChange={(e) => setDraft({ days: Number(e.target.value) })} /></Field>
               )}
             </div>
-            {flight && draft.service === "airport" && (
-              <div className="rounded-2xl border border-cyan-200/20 bg-cyan-300/5 p-4 text-sm text-cyan-50">
-                {draft.flight} · {flight.origin} → TPE · {flight.status} · ETA {flight.eta} · {flight.terminal}
-              </div>
+            {flight && (
+              <p className="text-sm text-[var(--muted)]">
+                {draft.flight} · {flight.origin} → TPE · {zh ? flight.statusZh : flight.status} · {flight.eta} {flight.terminal}
+              </p>
             )}
-            <Btn onClick={() => setStep(2)}>Lock vector</Btn>
-          </Panel>
+            <Btn onClick={() => setStep(2)}>{loc(locale, "Choose vehicle", "選車")}</Btn>
+          </div>
         )}
 
         {step === 2 && (
-          <Panel className="space-y-5">
-            <div className="grid gap-3">
-              {vehicles.map((car) => (
-                <button
-                  key={car.id}
-                  onClick={() => setDraft({ vehicle: car.id })}
-                  className={`flex items-center justify-between rounded-2xl border p-4 text-left ${
-                    draft.vehicle === car.id ? "border-cyan-200/50 bg-cyan-300/10" : "border-white/10 bg-white/3"
-                  }`}
-                >
-                  <div>
-                    <div className="display text-lg">{car.name}</div>
-                    <div className="text-xs text-white/50">
-                      {car.seats} seats · {car.luggage} × 28&quot; · {car.tag}
-                    </div>
-                  </div>
-                  <div className="text-sm text-white/70">×{car.multiplier}</div>
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Passengers">
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  value={draft.passengers}
-                  onChange={(e) => setDraft({ passengers: Number(e.target.value) })}
-                />
-              </Field>
-              <Field label="28-inch luggage">
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={draft.luggage}
-                  onChange={(e) => setDraft({ luggage: Number(e.target.value) })}
-                />
-              </Field>
-            </div>
-            {over && (
-              <div className="rounded-2xl border border-amber-200/30 bg-amber-300/10 p-3 text-sm text-amber-50">
-                Capacity exceeded. Halo recommends upgrading to MPV or Van.
-              </div>
+          <div className="space-y-3">
+            {fleet.map((car) => (
+              <button
+                key={car.id}
+                onClick={() => setDraft({ vehicle: car.id })}
+                className={`flex w-full justify-between rounded-2xl px-4 py-4 text-left ${draft.vehicle === car.id ? "bg-[var(--surface)]" : ""}`}
+              >
+                <div>
+                  <div className="display text-xl">{car.title}</div>
+                  <div className="text-sm text-[var(--muted)]">{car.sub}</div>
+                </div>
+                <div className="metric text-lg">{money(car.price, "TWD")}</div>
+              </button>
+            ))}
+            {tight && (
+              <p className="text-sm text-[var(--warning)]">
+                {loc(locale, "This ride may be too small for your group.", "這台車可能不夠載您的人數或行李。")}
+                {fleet.find((c) => c.seats >= draft.passengers && c.luggage >= draft.luggage) && (
+                  <button
+                    className="ml-2 underline"
+                    onClick={() => {
+                      const rec = fleet.find((c) => c.seats >= draft.passengers && c.luggage >= draft.luggage);
+                      if (rec) setDraft({ vehicle: rec.id });
+                    }}
+                  >
+                    {loc(locale, "Recommend a fit", "推薦合適車款")}
+                  </button>
+                )}
+              </p>
             )}
-            <label className="flex items-center gap-3 text-sm text-white/70">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={draft.preferredDriver}
-                onChange={(e) => setDraft({ preferredDriver: e.target.checked })}
-              />
-              Designated driver lock (+18%)
-            </label>
-            <div className="flex gap-3">
-              <Btn kind="ghost" onClick={() => setStep(1)}>Back</Btn>
-              <Btn onClick={() => setStep(3)}>Confirm vessel</Btn>
+            <div className="flex flex-wrap gap-2">
+              {extraOk.map((e) => {
+                const on = draft.extras.includes(e.id);
+                return (
+                  <button key={e.id} onClick={() => setDraft({ extras: on ? draft.extras.filter((x) => x !== e.id) : [...draft.extras, e.id] })} className={`rounded-xl px-3 py-2 text-sm ${on ? "bg-[var(--surface)]" : "hairline"}`}>
+                    {zh ? e.nameZh : e.name} · {money(e.price, "TWD")}
+                  </button>
+                );
+              })}
             </div>
-          </Panel>
+            <div className="flex gap-2">
+              <Btn kind="ghost" onClick={() => setStep(1)}>{loc(locale, "Back", "返回")}</Btn>
+              <Btn onClick={() => setStep(3)}>{loc(locale, "Confirm", "確認")}</Btn>
+            </div>
+          </div>
         )}
 
         {step === 3 && (
-          <Panel className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Passenger">
-                <input value={draft.name} onChange={(e) => setDraft({ name: e.target.value })} />
-              </Field>
-              <Field label="Signal / phone">
-                <input value={draft.phone} onChange={(e) => setDraft({ phone: e.target.value })} />
-              </Field>
+          <div className="space-y-4">
+            <Field label={loc(locale, "Passenger (English name kept)", "乘客（英文姓名不翻譯）")}>
+              <input value={draft.name} onChange={(e) => setDraft({ name: e.target.value })} />
+            </Field>
+            <Field label={loc(locale, "Phone", "電話")}><input value={draft.phone} onChange={(e) => setDraft({ phone: e.target.value })} /></Field>
+            <Field label="Promo"><input value={draft.promo} onChange={(e) => setDraft({ promo: e.target.value.toUpperCase() })} /></Field>
+            <div className="flex flex-wrap gap-2">
+              {(["card", "line", "apple", "cash"] as const).map((p) => (
+                <button key={p} onClick={() => setDraft({ payment: p })} className={`rounded-xl px-3 py-2 text-sm ${draft.payment === p ? "bg-[var(--surface)]" : "hairline"}`}>
+                  {p}
+                </button>
+              ))}
             </div>
-            <div className="rounded-2xl bg-white/4 p-4 text-sm text-white/65">
-              Card pre-authorization is simulated. Apple Pay / Google Pay / local rails are stubbed for the demo mesh.
-            </div>
-            <div className="flex gap-3">
-              <Btn kind="ghost" onClick={() => setStep(2)}>Back</Btn>
-              <Btn
-                onClick={() => {
-                  const b = placeBooking();
-                  router.push(`/trips/${b.id}`);
-                }}
-              >
-                {d.pay} · {money(convert(q.total, currency), currency)}
+            <p className="text-sm text-[var(--muted)]">{loc(locale, "Payments are simulated in this design prototype.", "此為設計原型，付款為模擬。")}</p>
+            <div className="flex gap-2">
+              <Btn kind="ghost" onClick={() => setStep(2)}>{loc(locale, "Back", "返回")}</Btn>
+              <Btn onClick={() => router.push(`/trips/${placeBooking().id}/success`)}>
+                {loc(locale, "Confirm booking", "確認預訂")} · {money(convert(q.total, currency), currency)}
               </Btn>
             </div>
-          </Panel>
+          </div>
         )}
       </div>
 
-      <aside className="space-y-4">
-        <Panel>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Transparent quote</div>
-          <div className="display mt-2 text-3xl">{money(convert(q.total, currency), currency)}</div>
-          <ul className="mt-4 space-y-2 text-sm text-white/60">
-            {q.items.map((i) => (
-              <li key={i.label} className="flex justify-between gap-4">
-                <span>{i.label}</span>
-                <span>{money(convert(i.amount, currency), currency)}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-        <Panel>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Canonical booking</div>
-          <p className="mt-2 text-sm text-white/60">
-            One object for airport, P2P, charter, taxi, rental and designated. States: Draft → Confirmed → Assigned → En
-            route → Arrived → In progress → Completed.
-          </p>
-        </Panel>
+      <aside className="space-y-4 lg:sticky lg:top-24">
+        <LiveMap locale={locale} mode="trip" height={220} focusDriverId={lastDriverId()} pickup={draft.pickup} dropoff={draft.dropoff} />
+        <div>
+          <div className="label">{loc(locale, "Estimated total", "預估總價")}</div>
+          <div className="display metric text-4xl">{money(convert(q.total, currency), currency)}</div>
+          <details className="mt-3 text-sm text-[var(--muted)]">
+            <summary>{loc(locale, "Explain this price", "說明這筆費用")}</summary>
+            <ul className="mt-2 space-y-1">
+              {q.items.map((i) => (
+                <li key={i.label} className="flex justify-between gap-3">
+                  <span>{zh ? i.labelZh : i.label}</span>
+                  <span>{money(convert(i.amount, currency), currency)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+          {draft.promo && promos[draft.promo as keyof typeof promos] && (
+            <p className="mt-2 text-sm text-[var(--ai)]">{zh ? promos[draft.promo as keyof typeof promos].zh : promos[draft.promo as keyof typeof promos].en}</p>
+          )}
+          <Status kind="assigned">{loc(locale, "Fleet priority A > B > C", "車隊優先 A＞B＞C")}</Status>
+        </div>
       </aside>
     </div>
   );

@@ -1,67 +1,106 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { drivers } from "@/lib/data";
+import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
-import { Btn, Panel, Stat } from "@/components/ui";
-import { useState } from "react";
+import { LiveMap } from "@/components/live-map";
+import { Btn, Stat } from "@/components/ui";
 
 export default function DriverPage() {
-  const { user, login, bookings, advance, currency } = useStore();
+  const { user, login, bookings, advance, grab, currency, locale } = useStore();
   const me = drivers[0];
-  const [online, setOnline] = useState(true);
-  const mine = bookings.filter((b) => b.driverId === me.id || !b.driverId);
+  const [work, setWork] = useState(me.work);
+  const [tab, setTab] = useState<"duty" | "job" | "pay">("duty");
+  const mine = bookings.filter((b) => b.driverId === me.id);
+  const incoming = bookings.find((b) => b.status === "new" || (!b.driverId && b.status === "payment_confirmed"));
+  const active = mine.find((b) => !["completed", "cancelled"].includes(b.status));
+  const primary = useMemo(() => {
+    if (!active) return null;
+    const map: Record<string, { next?: typeof active.status; label: string }> = {
+      assigned: { next: "accepted", label: loc(locale, "Accept", "接單") },
+      accepted: { next: "arriving", label: loc(locale, "Start to pickup", "前往接駕") },
+      arriving: { next: "onboard", label: loc(locale, "Arrived", "已到達") },
+      onboard: { next: "completed", label: loc(locale, "Complete", "完成") },
+    };
+    return map[active.status];
+  }, [active, locale]);
 
-  if (!user || user.role === "passenger") {
+  if (!user || user.role !== "driver") {
     return (
-      <Panel className="space-y-4">
-        <h1 className="display text-3xl">Driver gate</h1>
-        <Btn onClick={() => login("kenji@zoufeng.travel", "driver")}>Enter as Kenji Mori</Btn>
-      </Panel>
+      <div className="space-y-4 py-10">
+        <h1 className="display text-3xl">{loc(locale, "Driver", "司機")}</h1>
+        <Btn onClick={() => login("kenji@zoudian.travel", "driver")}>Kenji Mori</Btn>
+      </div>
+    );
+  }
+
+  if (incoming && work === "available" && tab !== "pay") {
+    return (
+      <div className="space-y-6">
+        <div className="label">{loc(locale, "New dispatch", "新派遣")}</div>
+        <h1 className="display text-4xl">{incoming.pickup} → {incoming.dropoff}</h1>
+        <p className="text-[var(--muted)]">{incoming.service} · {money(convert(incoming.driverNet, currency), currency)}</p>
+        <Btn className="w-full min-h-14 text-lg" onClick={() => grab(incoming.id, me.id)}>
+          {loc(locale, "Accept", "接單")}
+        </Btn>
+        <Btn kind="ghost" className="w-full" onClick={() => setTab("duty")}>
+          {loc(locale, "Decline", "拒絕")}
+        </Btn>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/70">Driver OS</div>
-          <h1 className="display text-4xl">{me.name}</h1>
-        </div>
-        <Btn kind={online ? "primary" : "ghost"} onClick={() => setOnline((v) => !v)}>
-          {online ? "Online · receiving" : "Offline"}
-        </Btn>
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Stat k="Week earnings" v={money(convert(me.earningsWeek, currency), currency)} d="Settlement export ready" />
-        <Stat k="Rating" v={String(me.rating)} d={`${me.trips} trips`} />
-        <Stat k="Vessel" v={me.plate} d={me.vehicle} />
-      </div>
-      <div className="space-y-3">
-        {mine.length === 0 && <Panel>No inbound jobs. Stay online for round-robin + weighted dispatch.</Panel>}
-        {mine.map((b) => (
-          <Panel key={b.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/40">
-                {b.id} · {b.status}
-              </div>
-              <div className="display text-xl">
-                {b.pickup} → {b.dropoff}
-              </div>
-              <div className="text-sm text-white/50">OTP from passenger · {b.when}</div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Btn kind="ghost" href={`https://maps.google.com/?q=${encodeURIComponent(b.dropoff)}`}>
-                Navigate
-              </Btn>
-              <Btn onClick={() => advance(b.id)}>Accept / next</Btn>
-            </div>
-          </Panel>
+      <div className="flex gap-2">
+        {(["duty", "job", "pay"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={`rounded-xl px-3 py-2 text-sm capitalize ${tab === t ? "bg-[var(--surface)]" : "text-[var(--muted)]"}`}>
+            {t}
+          </button>
         ))}
       </div>
-      <a href="/" className="text-sm text-cyan-200">
-        ← Passenger mesh
-      </a>
+      {tab === "duty" && (
+        <>
+          <div className="flex gap-2">
+            {(["available", "busy", "offline"] as const).map((w) => (
+              <Btn key={w} kind={work === w ? "primary" : "ghost"} onClick={() => setWork(w)}>
+                {w}
+              </Btn>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <Stat k={loc(locale, "Today", "今日")} v={money(convert(me.earningsToday, currency), currency)} />
+            <Stat k={loc(locale, "Trips", "趟次")} v={String(mine.filter((b) => b.status === "completed").length)} />
+          </div>
+          {active && (
+            <button className="text-left" onClick={() => setTab("job")}>
+              <div className="label">{loc(locale, "Next", "下一趟")}</div>
+              <div className="display text-2xl">{active.pickup} → {active.dropoff}</div>
+            </button>
+          )}
+        </>
+      )}
+      {tab === "job" && active && (
+        <>
+          <LiveMap locale={locale} mode="nav" height={360} focusDriverId={me.id} pickup={active.pickup} dropoff={active.dropoff} />
+          <div className="display text-2xl">{active.pickup} → {active.dropoff}</div>
+          <p className="text-[var(--muted)]">OTP {active.otp} · {active.status}</p>
+          {primary?.next && (
+            <Btn className="w-full min-h-14" onClick={() => advance(active.id, primary.next)}>
+              {primary.label}
+            </Btn>
+          )}
+        </>
+      )}
+      {tab === "job" && !active && <p className="text-[var(--muted)]">{loc(locale, "No active job.", "沒有進行中任務。")}</p>}
+      {tab === "pay" && (
+        <div className="space-y-4">
+          <Stat k={loc(locale, "Week", "本週")} v={money(convert(me.earningsWeek, currency), currency)} />
+          <Stat k={loc(locale, "Pending", "待撥")} v={money(convert(me.pendingPayout, currency), currency)} />
+        </div>
+      )}
     </div>
   );
 }

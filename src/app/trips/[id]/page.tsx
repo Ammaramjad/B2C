@@ -1,135 +1,107 @@
 "use client";
 
 import { use, useState } from "react";
+import { flights as flightDb } from "@/lib/data";
 import { drivers } from "@/lib/data";
+import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
-import { Btn, Panel } from "@/components/ui";
+import { LiveMap } from "@/components/live-map";
+import { Btn, Status } from "@/components/ui";
 
 export default function TripLivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { bookings, currency, advance, cancel } = useStore();
+  const { bookings, currency, advance, cancel, locale, requestSwitch } = useStore();
   const b = bookings.find((x) => x.id === id);
   const driver = drivers.find((d) => d.id === b?.driverId);
   const [otpOk, setOtpOk] = useState(false);
   const [code, setCode] = useState("");
   const [sos, setSos] = useState(false);
   const [share, setShare] = useState(false);
+  const [sw, setSw] = useState("");
+  const flight = b?.flight ? flightDb[b.flight] : undefined;
 
   if (!b) {
-    return (
-      <Panel>
-        Signal lost. This booking is not on this device mesh.{" "}
-        <a className="text-cyan-200" href="/trips">
-          Back to trips
-        </a>
-      </Panel>
-    );
+    return <p className="text-[var(--muted)]">{loc(locale, "This trip is not on this device.", "此裝置沒有這筆行程。")}</p>;
   }
 
-  return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <Panel className="relative overflow-hidden">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-white/40">Live trip · {b.status}</div>
-        <div className="display mt-2 text-3xl">
-          {b.pickup} → {b.dropoff}
-        </div>
-        <div className="relative mt-6 h-72 overflow-hidden rounded-[24px] bg-[#05001c]">
-          <svg className="h-full w-full" viewBox="0 0 400 280">
-            <defs>
-              <linearGradient id="g" x1="0" x2="1">
-                <stop stopColor="#4ef2ff" />
-                <stop offset="1" stopColor="#ff4fd8" />
-              </linearGradient>
-            </defs>
-            <path d="M30 230 C 90 80, 170 220, 250 90 S 360 60, 380 140" fill="none" stroke="url(#g)" strokeWidth="2" />
-            <circle cx="250" cy="90" r="7" fill="#4ef2ff" />
-            <circle cx="30" cy="230" r="5" fill="#ff4fd8" />
-          </svg>
-          <div className="ring left-[58%] top-[28%] h-10 w-10" />
-          <div className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-lime-300">
-            GPS mesh · 4.2 km · 9 min
-          </div>
-          {sos && (
-            <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-rose-400/40 bg-rose-600/30 p-3 text-sm">
-              SOS armed. L3 incident cell paged. Last fix frozen. Nearby units flagged.
-            </div>
-          )}
-        </div>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Btn kind="ghost" onClick={() => setShare(true)}>
-            Share live link
-          </Btn>
-          <Btn kind="danger" onClick={() => setSos(true)}>
-            SOS
-          </Btn>
-          {b.status !== "completed" && b.status !== "cancelled" && (
-            <Btn kind="ghost" onClick={() => advance(b.id)}>
-              Pulse next state
-            </Btn>
-          )}
-          {b.status !== "completed" && b.status !== "cancelled" && (
-            <Btn kind="ghost" onClick={() => cancel(b.id)}>
-              Cancel / refund
-            </Btn>
-          )}
-        </div>
-        {share && (
-          <p className="mt-3 text-sm text-cyan-100/80">
-            Family link: {typeof window !== "undefined" ? window.location.href : ""} · read-only GPS, no OTP.
-          </p>
-        )}
-      </Panel>
+  const airport = b.service.startsWith("airport");
 
-      <div className="space-y-4">
-        <Panel>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Captain</div>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15 text-sm">{driver?.photo}</div>
-            <div>
-              <div className="display text-xl">{driver?.name ?? "Assigning…"}</div>
-              <div className="text-xs text-white/50">
-                {driver ? `${driver.rating} ★ · ${driver.vehicle} · ${driver.plate}` : "Dispatch 2.0 spinning"}
-              </div>
-            </div>
+  return (
+    <div className="relative lg:-mx-4">
+      <LiveMap
+        locale={locale}
+        mode="trip"
+        height={typeof window !== "undefined" && window.innerWidth < 768 ? 520 : 560}
+        focusDriverId={driver?.id}
+        pickup={b.pickup}
+        dropoff={b.dropoff}
+        eta={loc(locale, "9 min", "9 分")}
+      />
+      <div className="sheet relative z-10 mx-auto -mt-16 max-w-2xl p-5 md:rounded-[24px] md:border md:border-[var(--border)]">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <Status kind={["arriving", "onboard", "accepted"].includes(b.status) ? "active" : b.status}>{b.status}</Status>
+          <span className="metric text-2xl">{money(convert(b.price, currency), currency)}</span>
+        </div>
+        <h1 className="display text-3xl">{b.pickup} → {b.dropoff}</h1>
+        {airport && (
+          <ol className="mt-4 space-y-2 text-sm">
+            <li>Flight {b.flight} · {flight ? (locale === "zh" ? flight.statusZh : flight.status) : "—"}</li>
+            <li className="text-[var(--muted)]">{loc(locale, "Arrival → driver ready → pickup · 45-min wait", "抵達 → 司機就緒 → 接送 · 45 分等候")}</li>
+          </ol>
+        )}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="avatar">{driver?.photo ?? "—"}</div>
+          <div>
+            <div className="display text-xl">{driver ? driver.name : loc(locale, "Assigning…", "指派中…")}</div>
+            <div className="text-sm text-[var(--muted)]">{driver ? `${driver.vehicle} · ${driver.plate}` : loc(locale, "Company dispatch", "公司派遣")}</div>
           </div>
-        </Panel>
-        <Panel>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Boarding OTP</div>
-          <div className="display mt-2 text-4xl tracking-[0.3em]">{b.otp}</div>
-          <p className="mt-2 text-sm text-white/50">Show this to the captain. They enter it to start In progress.</p>
-          <div className="mt-3 flex gap-2">
-            <input placeholder="Driver entry" value={code} onChange={(e) => setCode(e.target.value)} />
+        </div>
+        <div className="mt-4">
+          <div className="label">OTP</div>
+          <div className="display metric text-4xl tracking-[0.2em]">{b.otp}</div>
+          <div className="mt-2 flex gap-2">
+            <input placeholder={loc(locale, "Driver entry", "司機輸入")} value={code} onChange={(e) => setCode(e.target.value)} />
             <Btn
               kind="ghost"
               onClick={() => {
                 if (code === b.otp) {
                   setOtpOk(true);
-                  advance(b.id, "in_progress");
+                  advance(b.id, "onboard");
                 }
               }}
             >
-              Verify
+              {loc(locale, "Verify", "驗證")}
             </Btn>
           </div>
-          {otpOk && <div className="mt-2 text-sm text-lime-300">OTP sealed. Cabin is live.</div>}
-        </Panel>
-        <Panel>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Ledger</div>
-          <ul className="mt-3 space-y-2 text-sm text-white/60">
-            {b.breakdown.map((i) => (
-              <li key={i.label} className="flex justify-between">
-                <span>{i.label}</span>
-                <span>{money(convert(i.amount, currency), currency)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex justify-between display text-xl">
-            <span>Total</span>
-            <span>{money(convert(b.price, currency), currency)}</span>
-          </div>
-          {b.flight && <p className="mt-3 text-xs text-white/45">Flight {b.flight} · {b.flightEta} · 60-min free wait</p>}
-        </Panel>
+          {otpOk && <p className="mt-2 text-sm text-[var(--success)]">{loc(locale, "Passenger verified.", "乘客已驗證。")}</p>}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Btn kind="ghost" onClick={() => setShare(true)}>{loc(locale, "Share trip", "分享行程")}</Btn>
+          <Btn kind="danger" onClick={() => setSos(true)}>SOS</Btn>
+          {driver && (
+            <Btn
+              kind="ghost"
+              onClick={() => {
+                const r = requestSwitch({
+                  bookingId: b.id,
+                  fromDriverId: driver.id,
+                  reason: "Request a different driver through the company.",
+                  reasonZh: "透過公司申請更換司機。",
+                });
+                setSw(r.id);
+              }}
+            >
+              {loc(locale, "Switch via company", "透過公司更換")}
+            </Btn>
+          )}
+          {b.status !== "completed" && b.status !== "cancelled" && (
+            <Btn kind="ghost" onClick={() => cancel(b.id)}>{loc(locale, "Cancel", "取消")}</Btn>
+          )}
+        </div>
+        {share && <p className="mt-3 text-sm text-[var(--muted)]">{typeof window !== "undefined" ? window.location.href : ""}</p>}
+        {sw && <p className="mt-3 text-sm text-[var(--ai)]">{loc(locale, "Company switch sent", "公司代換已送出")} · {sw}</p>}
+        {sos && <p className="mt-3 text-sm text-[var(--danger)]">{loc(locale, "SOS sent to operations.", "SOS 已送交調度。")}</p>}
       </div>
     </div>
   );
