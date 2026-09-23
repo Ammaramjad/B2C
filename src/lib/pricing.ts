@@ -4,25 +4,18 @@ import type { Currency, LineItem, ServiceType, VehicleClass } from "./types";
 const FX: Record<Currency, number> = {
   TWD: 1,
   USD: 0.031,
-  JPY: 4.6,
-  KRW: 42,
-  INR: 2.7,
 };
 
 export function convert(twd: number, currency: Currency) {
-  return Math.round(twd * FX[currency]);
+  if (currency === "USD") return Math.round(twd * FX.USD * 100) / 100;
+  return Math.round(twd);
 }
 
 export function money(amount: number, currency: Currency) {
-  const map: Record<Currency, [string, string]> = {
-    TWD: ["NT$", "zh-TW"],
-    USD: ["$", "en-US"],
-    JPY: ["¥", "ja-JP"],
-    KRW: ["₩", "ko-KR"],
-    INR: ["₹", "en-IN"],
-  };
-  const [sym] = map[currency];
-  return `${sym}${amount.toLocaleString()}`;
+  if (currency === "USD") {
+    return `US$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `NT$${Math.round(amount).toLocaleString("zh-TW")}`;
 }
 
 export function quote(opts: {
@@ -47,14 +40,20 @@ export function quote(opts: {
   if (opts.service === "experience") base = 5400;
 
   const items: LineItem[] = [
-    { label: "Base orbit fare", amount: Math.round(base * v.multiplier) },
+    { label: "Base fare", labelZh: "基本車資", amount: Math.round(base * v.multiplier) },
   ];
   if (opts.airport || opts.service === "airport") {
-    items.push({ label: "Airport access + meet", amount: 280 });
+    items.push({ label: "Airport access + meet", labelZh: "機場接駁與舉牌", amount: 280 });
   }
-  if (opts.night) items.push({ label: "Night / peak pulse", amount: 220 });
-  items.push({ label: "Demand & weather (16-factor)", amount: Math.round(base * (demand - 1)) });
-  if (opts.preferredDriver) items.push({ label: "Designated driver +18%", amount: Math.round(base * 0.18) });
+  if (opts.night) items.push({ label: "Night / peak", labelZh: "夜間／尖峰加成", amount: 220 });
+  items.push({
+    label: "Demand & weather (16-factor)",
+    labelZh: "供需與天候（16 因子）",
+    amount: Math.round(base * (demand - 1)),
+  });
+  if (opts.preferredDriver) {
+    items.push({ label: "Designated driver +18%", labelZh: "指定司機 +18%", amount: Math.round(base * 0.18) });
+  }
   const total = items.reduce((s, i) => s + i.amount, 0);
   return { items, total, km, hours };
 }
@@ -65,12 +64,4 @@ export function cancelFee(hoursBefore: number, total: number) {
   return total;
 }
 
-export const statusFlow = [
-  "draft",
-  "confirmed",
-  "assigned",
-  "en_route",
-  "arrived",
-  "in_progress",
-  "completed",
-] as const;
+export const COMMISSION = 0.2;

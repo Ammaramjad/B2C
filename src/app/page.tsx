@@ -47,8 +47,12 @@ export default function HomePage() {
           <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {kpis.slice(0, 4).map((k) => (
               <div key={k.key} className="glass rounded-2xl p-3">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-white/40">{k.label}</div>
-                <div className="display text-lg">{k.value}</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-white/40">
+                  {locale === "zh" ? k.labelZh : k.label}
+                </div>
+                <div className="display text-lg">
+                  {"twd" in k && k.twd != null ? money(convert(k.twd, currency), currency) : (k.value ?? "—")}
+                </div>
               </div>
             ))}
           </div>
@@ -118,8 +122,10 @@ export default function HomePage() {
               <img src={c.image} alt={c.city} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#030014] via-[#030014]/20 to-transparent" />
               <div className="absolute bottom-0 p-5">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/80">{c.country}</div>
-                <div className="display text-3xl">{c.city}</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/80">
+                  {locale === "zh" ? c.countryZh : c.country}
+                </div>
+                <div className="display text-3xl">{locale === "zh" ? c.cityZh : c.city}</div>
                 <div className="mt-1 text-sm text-white/70">
                   {c.routes} routes · from {money(convert(c.from, currency), currency)}
                 </div>

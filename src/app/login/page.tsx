@@ -7,7 +7,7 @@ import { Btn, Field, Panel } from "@/components/ui";
 import type { Role } from "@/lib/types";
 
 export default function LoginPage() {
-  const { login } = useStore();
+  const { login, locale } = useStore();
   const [email, setEmail] = useState("amara@zoufeng.travel");
   const router = useRouter();
 
@@ -19,20 +19,22 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-lg">
       <Panel className="space-y-5">
-        <h1 className="display text-4xl">Enter the mesh</h1>
+        <h1 className="display text-4xl">{locale === "zh" ? "進入網格" : "Enter the mesh"}</h1>
         <p className="text-sm text-white/55">
-          JWT-style demo session. Phone/email identity. No password — this is a preview of membership M08.
+          {locale === "zh"
+            ? "示範登入（M08）。乘客／司機／後台三角色。"
+            : "Demo session (M08). Passenger, driver, or admin."}
         </p>
         <Field label="Email or phone">
           <input value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <div className="flex flex-wrap gap-3">
-          <Btn onClick={() => enter("passenger")}>Passenger</Btn>
+          <Btn onClick={() => enter("passenger")}>{locale === "zh" ? "乘客" : "Passenger"}</Btn>
           <Btn kind="ghost" onClick={() => enter("driver")}>
-            Driver
+            {locale === "zh" ? "司機" : "Driver"}
           </Btn>
           <Btn kind="ghost" onClick={() => enter("ops")}>
-            Operations
+            {locale === "zh" ? "後台管理" : "Admin"}
           </Btn>
         </div>
         <p className="text-xs text-white/40">

@@ -57,11 +57,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               value={currency}
               onChange={(e) => setCurrency(e.target.value as never)}
             >
-              <option>TWD</option>
-              <option>USD</option>
-              <option>JPY</option>
-              <option>KRW</option>
-              <option>INR</option>
+              <option value="TWD">TWD NT$</option>
+              <option value="USD">USD US$</option>
             </select>
             <label className="hidden items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-xs text-white/60 sm:flex">
               <Globe className="h-3.5 w-3.5" />
@@ -70,9 +67,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as Locale)}
               >
-                <option value="en">EN</option>
-                <option value="hi">HI</option>
-                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="zh">繁體中文</option>
               </select>
             </label>
             <Link href="/driver" className="hidden text-[11px] uppercase tracking-[0.16em] text-white/40 md:inline">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { flights, vehicles } from "@/lib/data";
+import { drivers, flights, vehicles } from "@/lib/data";
 import { convert, money, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
@@ -20,7 +20,9 @@ const services: { id: ServiceType; label: string }[] = [
 ];
 
 export default function BookPage() {
-  const { draft, setDraft, currency, placeBooking, locale } = useStore();
+  const { draft, setDraft, currency, placeBooking, locale, lastDriverId } = useStore();
+  const lastId = lastDriverId();
+  const last = drivers.find((x) => x.id === lastId);
   const d = t(locale);
   const [step, setStep] = useState(1);
   const router = useRouter();
@@ -31,7 +33,7 @@ export default function BookPage() {
         vehicle: draft.vehicle,
         airport: draft.service === "airport",
         hours: draft.hours,
-        preferredDriver: draft.preferredDriver,
+        preferredDriver: draft.driverMode === "same",
         night: draft.when?.includes("T22") || draft.when?.includes("T23"),
       }),
     [draft],
@@ -156,15 +158,38 @@ export default function BookPage() {
                 Capacity exceeded. Halo recommends upgrading to MPV or Van.
               </div>
             )}
-            <label className="flex items-center gap-3 text-sm text-white/70">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={draft.preferredDriver}
-                onChange={(e) => setDraft({ preferredDriver: e.target.checked })}
-              />
-              Designated driver lock (+18%)
-            </label>
+            <div className="space-y-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/5 p-4">
+              <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/70">{d.lastCaptain}</div>
+              <p className="text-sm text-white/70">{d.switchPolicy}</p>
+              {last && (
+                <p className="text-sm text-white/80">
+                  {locale === "zh" ? last.nameZh : last.name} · {last.plate} · {d.maskedPhone}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDraft({ driverMode: "same" })}
+                  className={`rounded-full px-3 py-1.5 text-xs ${
+                    draft.driverMode === "same" ? "bg-cyan-300 text-[#070014]" : "bg-white/10"
+                  }`}
+                >
+                  {d.sameDriver}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft({ driverMode: "company" })}
+                  className={`rounded-full px-3 py-1.5 text-xs ${
+                    draft.driverMode === "company" ? "bg-cyan-300 text-[#070014]" : "bg-white/10"
+                  }`}
+                >
+                  {d.anyDriver}
+                </button>
+              </div>
+              <a href="/account" className="block text-xs text-cyan-200">
+                {d.requestSwitch} →
+              </a>
+            </div>
             <div className="flex gap-3">
               <Btn kind="ghost" onClick={() => setStep(1)}>Back</Btn>
               <Btn onClick={() => setStep(3)}>Confirm vessel</Btn>
@@ -207,7 +232,7 @@ export default function BookPage() {
           <ul className="mt-4 space-y-2 text-sm text-white/60">
             {q.items.map((i) => (
               <li key={i.label} className="flex justify-between gap-4">
-                <span>{i.label}</span>
+                <span>{locale === "zh" ? i.labelZh : i.label}</span>
                 <span>{money(convert(i.amount, currency), currency)}</span>
               </li>
             ))}

@@ -7,7 +7,7 @@ import { Btn, Field, Panel } from "@/components/ui";
 import { useState } from "react";
 
 export default function PlannerPage() {
-  const { itinerary, setItinerary, planFromPrompt, currency, setDraft } = useStore();
+  const { itinerary, setItinerary, planFromPrompt, currency, setDraft, locale } = useStore();
   const [prompt, setPrompt] = useState("a three-day, two-night family trip to Taipei");
   const items = itinerary
     .map((id) => attractions.find((a) => a.id === id))
@@ -42,7 +42,7 @@ export default function PlannerPage() {
             <Panel key={a.id} className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">0{i + 1}</div>
-                <div className="display text-xl">{a.name}</div>
+                <div className="display text-xl">{locale === "zh" ? a.nameZh : a.name}</div>
                 <div className="text-xs text-white/50">
                   {a.hours}h · tickets {money(convert(a.cost, currency), currency)}
                 </div>

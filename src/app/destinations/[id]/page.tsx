@@ -10,23 +10,25 @@ import { Btn, Panel } from "@/components/ui";
 export default function CityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const city = destinations.find((d) => d.id === id) ?? destinations[0];
-  const { currency, setDraft } = useStore();
+  const { currency, setDraft, locale } = useStore();
   return (
     <div className="space-y-8">
       <div className="relative h-72 overflow-hidden rounded-[32px]">
         <img src={city.image} alt={city.city} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#030014] to-transparent" />
         <div className="absolute bottom-6 left-6">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100">{city.country}</div>
-          <h1 className="display text-5xl">{city.city}</h1>
-          <p className="text-white/70">{city.tag}</p>
+          <div className="text-[11px] uppercase tracking-[0.22em] text-cyan-100">
+            {locale === "zh" ? city.countryZh : city.country}
+          </div>
+          <h1 className="display text-5xl">{locale === "zh" ? city.cityZh : city.city}</h1>
+          <p className="text-white/70">{locale === "zh" ? city.tagZh : city.tag}</p>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {popularRoutes.map((r) => (
           <Panel key={r.from + r.to}>
             <div className="display text-xl">
-              {r.from} → {r.to}
+              {locale === "zh" ? `${r.fromZh} → ${r.toZh}` : `${r.from} → ${r.to}`}
             </div>
             <div className="mt-2 text-sm text-white/50">
               {r.km} km · {r.mins} min · {money(convert(r.price, currency), currency)}

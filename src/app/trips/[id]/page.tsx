@@ -8,13 +8,14 @@ import { Btn, Panel } from "@/components/ui";
 
 export default function TripLivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { bookings, currency, advance, cancel } = useStore();
+  const { bookings, currency, advance, cancel, locale, requestSwitch } = useStore();
   const b = bookings.find((x) => x.id === id);
   const driver = drivers.find((d) => d.id === b?.driverId);
   const [otpOk, setOtpOk] = useState(false);
   const [code, setCode] = useState("");
   const [sos, setSos] = useState(false);
   const [share, setShare] = useState(false);
+  const [sw, setSw] = useState("");
 
   if (!b) {
     return (
@@ -70,13 +71,34 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
           )}
           {b.status !== "completed" && b.status !== "cancelled" && (
             <Btn kind="ghost" onClick={() => cancel(b.id)}>
-              Cancel / refund
+              {locale === "zh" ? "取消／退款" : "Cancel / refund"}
+            </Btn>
+          )}
+          {driver && (
+            <Btn
+              kind="ghost"
+              onClick={() => {
+                const r = requestSwitch({
+                  bookingId: b.id,
+                  fromDriverId: driver.id,
+                  reason: "Request a different captain through ZOUFENG. No private contact.",
+                  reasonZh: "透過公司申請更換司機，不私下聯絡。",
+                });
+                setSw(r.id);
+              }}
+            >
+              {locale === "zh" ? "透過公司更換司機" : "Switch driver via company"}
             </Btn>
           )}
         </div>
         {share && (
           <p className="mt-3 text-sm text-cyan-100/80">
-            Family link: {typeof window !== "undefined" ? window.location.href : ""} · read-only GPS, no OTP.
+            {locale === "zh" ? "家屬連結" : "Family link"}: {typeof window !== "undefined" ? window.location.href : ""}
+          </p>
+        )}
+        {sw && (
+          <p className="mt-3 text-sm text-lime-300">
+            {locale === "zh" ? "公司代換申請已送出" : "Company switch request sent"} · {sw}
           </p>
         )}
       </Panel>
@@ -87,9 +109,16 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
           <div className="mt-2 flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15 text-sm">{driver?.photo}</div>
             <div>
-              <div className="display text-xl">{driver?.name ?? "Assigning…"}</div>
+              <div className="display text-xl">
+                {driver ? (locale === "zh" ? driver.nameZh : driver.name) : locale === "zh" ? "指派中…" : "Assigning…"}
+              </div>
               <div className="text-xs text-white/50">
-                {driver ? `${driver.rating} ★ · ${driver.vehicle} · ${driver.plate}` : "Dispatch 2.0 spinning"}
+                {driver
+                  ? `${driver.rating} ★ · ${driver.vehicle} · ${driver.plate}`
+                  : locale === "zh" ? "公司派遣中" : "Company dispatch"}
+              </div>
+              <div className="mt-1 text-[11px] text-cyan-100/70">
+                {locale === "zh" ? "由 ZOUFENG 代轉 — 不提供司機私人號碼" : "Relay via ZOUFENG — driver number is not shared"}
               </div>
             </div>
           </div>
@@ -119,7 +148,7 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
           <ul className="mt-3 space-y-2 text-sm text-white/60">
             {b.breakdown.map((i) => (
               <li key={i.label} className="flex justify-between">
-                <span>{i.label}</span>
+                <span>{locale === "zh" ? i.labelZh : i.label}</span>
                 <span>{money(convert(i.amount, currency), currency)}</span>
               </li>
             ))}

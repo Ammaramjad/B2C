@@ -24,7 +24,7 @@ export default function WalletPage() {
   return (
     <div className="space-y-6">
       <h1 className="display text-4xl">E-wallet & FX</h1>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2">
         {(Object.keys(user.wallet) as Currency[]).map((c) => (
           <Stat key={c} k={c} v={money(user.wallet[c], c)} />
         ))}
@@ -48,8 +48,7 @@ export default function WalletPage() {
         </Btn>
         {msg && <p className="text-sm text-cyan-100/80">{msg}</p>}
         <p className="text-sm text-white/50">
-          Display currency {currency}. Settlement still posts in TWD internally then FX-converts. Coupons never exceed
-          risk caps.
+          Display {currency}. Settlement posts in New Taiwan Dollar, with US Dollar display.
         </p>
         <a href="/loyalty" className="text-sm text-cyan-200">
           Open loyalty / RFM →
