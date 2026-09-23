@@ -1,13 +1,14 @@
 "use client";
 
 import { use, useState } from "react";
-import { flights as flightDb } from "@/lib/data";
-import { drivers } from "@/lib/data";
+import { drivers, flights as flightDb } from "@/lib/data";
+import { cancellationConsequence } from "@/lib/domain/policy";
+import { statusLabel, timelineOrder } from "@/lib/domain/state-machine";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
-import { LiveMap } from "@/components/live-map";
-import { Btn, Status } from "@/components/ui";
+import { Alert, Button, EmptyState } from "@/components/system";
+import { OpsMap } from "@/components/ops-map";
 
 export default function TripLivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -22,48 +23,51 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
   const flight = b?.flight ? flightDb[b.flight] : undefined;
 
   if (!b) {
-    return <p className="text-[var(--muted)]">{loc(locale, "This trip is not on this device.", "此裝置沒有這筆行程。")}</p>;
+    return <EmptyState title={loc(locale, "Trip not on this device", "此裝置沒有這筆行程")} body={loc(locale, "Bookings created here stay in the local demo adapter.", "此處建立的訂單存在本機示範轉接器。")} action={<Button href="/trips">{loc(locale, "My trips", "我的行程")}</Button>} />;
   }
 
-  const airport = b.service.startsWith("airport");
+  const consequence = cancellationConsequence(b.when, b.price);
+  const zh = locale === "zh";
 
   return (
-    <div className="relative lg:-mx-4">
-      <LiveMap
-        locale={locale}
-        mode="trip"
-        height={typeof window !== "undefined" && window.innerWidth < 768 ? 520 : 560}
-        focusDriverId={driver?.id}
-        pickup={b.pickup}
-        dropoff={b.dropoff}
-        eta={loc(locale, "9 min", "9 分")}
-      />
-      <div className="sheet relative z-10 mx-auto -mt-16 max-w-2xl p-5 md:rounded-[24px] md:border md:border-[var(--border)]">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <Status kind={["arriving", "onboard", "accepted"].includes(b.status) ? "active" : b.status}>{b.status}</Status>
-          <span className="metric text-2xl">{money(convert(b.price, currency), currency)}</span>
+    <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <div>
+        <OpsMap locale={locale} height={360} pickup={b.pickup} dropoff={b.dropoff} eta={loc(locale, "Demo ETA 9 min", "示範 ETA 9 分")} caption={loc(locale, "Live trip geometry is demo data, not production GPS.", "即時行程幾何為示範資料，非正式 GPS。")} />
+      </div>
+      <div className="space-y-5">
+        <div>
+          <p className="label">{b.id}</p>
+          <h1 className="display text-3xl">{b.pickup} → {b.dropoff}</h1>
+          <p className="mt-1 font-semibold">{zh ? statusLabel[b.status].zh : statusLabel[b.status].en}</p>
         </div>
-        <h1 className="display text-3xl">{b.pickup} → {b.dropoff}</h1>
-        {airport && (
-          <ol className="mt-4 space-y-2 text-sm">
-            <li>Flight {b.flight} · {flight ? (locale === "zh" ? flight.statusZh : flight.status) : "—"}</li>
-            <li className="text-[var(--muted)]">{loc(locale, "Arrival → driver ready → pickup · 45-min wait", "抵達 → 司機就緒 → 接送 · 45 分等候")}</li>
-          </ol>
+        <div className="metric text-3xl">{money(convert(b.price, currency), currency)}</div>
+        {b.flight && (
+          <Alert tone={flight?.status.includes("Delay") ? "warn" : "info"}>
+            {loc(locale, "Flight", "航班")} {b.flight} · {flight ? (zh ? flight.statusZh : flight.status) : loc(locale, "Verify manually — flight adapter unavailable", "請人工核實——航班轉接器未連線")} · {flight?.terminal}
+          </Alert>
         )}
-        <div className="mt-4 flex items-center gap-3">
-          <div className="avatar">{driver?.photo ?? "—"}</div>
-          <div>
-            <div className="display text-xl">{driver ? driver.name : loc(locale, "Assigning…", "指派中…")}</div>
-            <div className="text-sm text-[var(--muted)]">{driver ? `${driver.vehicle} · ${driver.plate}` : loc(locale, "Company dispatch", "公司派遣")}</div>
-          </div>
+        <ol className="timeline">
+          {timelineOrder.map((st) => (
+            <li key={st}>
+              <span className={`dot ${timelineOrder.indexOf(st) <= timelineOrder.indexOf(b.status) ? "on" : ""}`} />
+              <span className="text-sm">{zh ? statusLabel[st].zh : statusLabel[st].en}</span>
+            </li>
+          ))}
+        </ol>
+        <div>
+          <div className="label">{loc(locale, "Driver", "司機")}</div>
+          <p className="display text-xl">{driver ? driver.name : loc(locale, "Company assigning…", "公司指派中…")}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{driver ? `${driver.vehicle} · ${driver.plate}` : loc(locale, "Private numbers are not shared.", "不提供私人電話。")}</p>
         </div>
-        <div className="mt-4">
+        <div>
           <div className="label">OTP</div>
-          <div className="display metric text-4xl tracking-[0.2em]">{b.otp}</div>
+          <div className="metric text-4xl tracking-[0.18em]">{b.otp}</div>
           <div className="mt-2 flex gap-2">
             <input placeholder={loc(locale, "Driver entry", "司機輸入")} value={code} onChange={(e) => setCode(e.target.value)} />
-            <Btn
+            <Button
               kind="ghost"
+              disabled={code.length < 4}
+              title={code.length < 4 ? loc(locale, "Enter the 4-digit code", "請輸入 4 位數") : undefined}
               onClick={() => {
                 if (code === b.otp) {
                   setOtpOk(true);
@@ -72,36 +76,35 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
               }}
             >
               {loc(locale, "Verify", "驗證")}
-            </Btn>
+            </Button>
           </div>
           {otpOk && <p className="mt-2 text-sm text-[var(--success)]">{loc(locale, "Passenger verified.", "乘客已驗證。")}</p>}
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Btn kind="ghost" onClick={() => setShare(true)}>{loc(locale, "Share trip", "分享行程")}</Btn>
-          <Btn kind="danger" onClick={() => setSos(true)}>SOS</Btn>
-          {driver && (
-            <Btn
-              kind="ghost"
+        <div className="flex flex-wrap gap-2">
+          <Button kind="ghost" onClick={() => setShare(true)}>{loc(locale, "Share trip", "分享行程")}</Button>
+          <Button kind="danger" onClick={() => setSos(true)}>{loc(locale, "SOS — escalate to ops", "SOS — 升級調度")}</Button>
+        </div>
+        {share && <Alert tone="ok">{loc(locale, "Share link is a prototype (copy from this device).", "分享連結為原型（僅此裝置）。")}</Alert>}
+        {sos && <Alert tone="danger">{loc(locale, "SOS marked on this booking. Operations can see the exception in the command center.", "已標記 SOS。調度可在指揮中心看到此異常。")}</Alert>}
+        {b.status !== "completed" && b.status !== "cancelled" && (
+          <div className="space-y-2 border-t border-[var(--border)] pt-4">
+            <p className="text-sm">
+              {loc(locale, "Cancel now:", "現在取消：")} {consequence.tier === "free" ? loc(locale, "full refund", "全額退款") : consequence.tier === "partial" ? loc(locale, `fee ${money(consequence.fee, "TWD")}`, `手續費 ${money(consequence.fee, "TWD")}`) : loc(locale, "no refund", "不予退款")}
+            </p>
+            <Button kind="ghost" onClick={() => cancel(b.id)}>{loc(locale, "Cancel this booking", "取消此預訂")}</Button>
+            <Button
+              kind="plain"
               onClick={() => {
-                const r = requestSwitch({
-                  bookingId: b.id,
-                  fromDriverId: driver.id,
-                  reason: "Request a different driver through the company.",
-                  reasonZh: "透過公司申請更換司機。",
-                });
-                setSw(r.id);
+                if (!driver) return;
+                const req = requestSwitch({ bookingId: b.id, fromDriverId: driver.id, reason: "Passenger requested company switch", reasonZh: "旅客申請公司代換" });
+                setSw(req.id);
               }}
             >
-              {loc(locale, "Switch via company", "透過公司更換")}
-            </Btn>
-          )}
-          {b.status !== "completed" && b.status !== "cancelled" && (
-            <Btn kind="ghost" onClick={() => cancel(b.id)}>{loc(locale, "Cancel", "取消")}</Btn>
-          )}
-        </div>
-        {share && <p className="mt-3 text-sm text-[var(--muted)]">{typeof window !== "undefined" ? window.location.href : ""}</p>}
-        {sw && <p className="mt-3 text-sm text-[var(--ai)]">{loc(locale, "Company switch sent", "公司代換已送出")} · {sw}</p>}
-        {sos && <p className="mt-3 text-sm text-[var(--danger)]">{loc(locale, "SOS sent to operations.", "SOS 已送交調度。")}</p>}
+              {loc(locale, "Request different driver via company", "透過公司申請更換司機")}
+            </Button>
+            {sw && <p className="text-sm">{loc(locale, "Switch request", "更換申請")} {sw}</p>}
+          </div>
+        )}
       </div>
     </div>
   );

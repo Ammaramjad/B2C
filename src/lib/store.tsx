@@ -137,7 +137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return {
       locale: (parsed?.locale === "zh" ? "zh" : "en") as Locale,
       currency: (parsed?.currency === "USD" ? "USD" : "TWD") as Currency,
-      theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "dark") as Theme,
+      theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "light") as Theme,
       user: (parsed?.user as User | null | undefined) ?? null,
       draft: { ...defaultDraft, ...(parsed?.draft as Partial<Draft> | undefined) } as Draft,
       bookings:

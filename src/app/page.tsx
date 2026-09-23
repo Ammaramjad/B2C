@@ -4,63 +4,72 @@ import { useRouter } from "next/navigation";
 import { services } from "@/lib/catalog";
 import { loc } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
-import { LiveMap } from "@/components/live-map";
-import { Btn, Chip } from "@/components/ui";
+import { Button } from "@/components/system";
+import { OpsMap } from "@/components/ops-map";
 import type { ServiceType } from "@/lib/types";
 
 export default function HomePage() {
-  const { locale, setDraft, recent, pushRecent, draft } = useStore();
+  const { locale, setDraft, draft, bookings, user } = useStore();
   const router = useRouter();
   const zh = locale === "zh";
+  const live = bookings.find((b) => ["assigned", "accepted", "arriving", "onboard"].includes(b.status) && b.passengerId === (user?.id ?? "p1"));
 
-  function go(id: ServiceType) {
-    setDraft({ service: id, channel: id === "instant" ? "taxi" : "web" });
-    pushRecent(id);
-    router.push(id === "instant" ? "/instant" : id === "hourly" ? "/planner" : "/book");
+  function start(id: ServiceType) {
+    setDraft({
+      service: id,
+      channel: id === "instant" ? "taxi" : "web",
+      vehicle: id === "instant" ? "taxi" : id === "rental" ? "yaris" : "sedan",
+    });
+    router.push("/book");
   }
 
   return (
-    <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-[28px]">
-        <LiveMap locale={locale} mode="fleet" height={520} pickup={draft.pickup} dropoff={draft.dropoff} eta={zh ? "45 分免費等候" : "45-min free wait"} />
-        <div className="absolute inset-x-0 bottom-0 p-4 md:p-8">
-          <div className="elevated mx-auto max-w-xl space-y-4 rounded-[24px] p-5">
-            <Chip tone="ai">{loc(locale, "Ask AI · Plan my trip", "問 AI · 規劃行程")}</Chip>
-            <h1 className="display text-4xl md:text-5xl">{loc(locale, "Where are you going?", "要去哪裡？")}</h1>
-            <form
-              className="flex flex-col gap-2 sm:flex-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                router.push("/book");
-              }}
-            >
-              <input
-                aria-label={loc(locale, "Destination", "目的地")}
-                value={draft.dropoff}
-                onChange={(e) => setDraft({ dropoff: e.target.value })}
-                placeholder={zh ? "台北 101、桃園機場…" : "Taipei 101, TPE…"}
-              />
-              <Btn type="submit">{loc(locale, "Continue", "繼續")}</Btn>
-            </form>
-            <div className="flex flex-wrap gap-2">
-              {services.map((s) => (
-                <button key={s.id} onClick={() => go(s.id)} className="rounded-xl hairline px-3 py-2 text-sm text-[var(--muted)]">
-                  {zh ? s.zh : s.en}
-                </button>
-              ))}
-            </div>
-            {recent.length > 0 && (
-              <div className="flex flex-wrap gap-2 text-xs text-[var(--muted)]">
-                {recent.map((r) => (
-                  <button key={r} onClick={() => go(r as ServiceType)}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+    <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="space-y-6">
+        <p className="label">{loc(locale, "Zoufeng mobility", "走癲移動")}</p>
+        <h1 className="display text-4xl md:text-6xl">{loc(locale, "Where are you going?", "要去哪裡？")}</h1>
+        <p className="max-w-xl text-[var(--text-secondary)]">
+          {loc(locale, "Airport, city, charter, taxi, or self-drive — one booking record, transparent NT$ fare.", "接機、市區、包車、計程車或自駕——同一筆訂單、新台幣透明報價。")}
+        </p>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            router.push("/book");
+          }}
+        >
+          <label className="block">
+            <span className="label">{loc(locale, "Destination", "目的地")}</span>
+            <input
+              className="mt-2"
+              value={draft.dropoff}
+              onChange={(e) => setDraft({ dropoff: e.target.value })}
+              placeholder={zh ? "台北 101、桃園機場…" : "Taipei 101, TPE Airport…"}
+            />
+          </label>
+          <Button type="submit" className="w-full sm:w-auto">{loc(locale, "Plan this trip", "規劃這趟行程")}</Button>
+        </form>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {services.map((s) => (
+            <button key={s.id} onClick={() => start(s.id)} className="focus-ring flex items-center justify-between border-b border-[var(--border)] py-3 text-left">
+              <span>{zh ? s.zh : s.en}</span>
+              <span className="text-sm text-[var(--text-secondary)]">{s.formula.includes("880") ? "4–12h" : s.id === "instant" ? "ETA" : "NT$"}</span>
+            </button>
+          ))}
         </div>
-      </div>
+      </section>
+      <aside className="space-y-4">
+        <OpsMap locale={locale} height={320} pickup={draft.pickup} dropoff={draft.dropoff} />
+        {live ? (
+          <div className="border-t border-[var(--border)] pt-4">
+            <div className="label">{loc(locale, "Active trip", "進行中行程")}</div>
+            <p className="mt-1 display text-2xl">{live.pickup} → {live.dropoff}</p>
+            <Button href={`/trips/${live.id}`} kind="ghost" className="mt-3">{loc(locale, "Open live trip", "開啟即時行程")}</Button>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-secondary)]">{loc(locale, "No live trip on this device.", "此裝置沒有進行中行程。")}</p>
+        )}
+      </aside>
     </div>
   );
 }
