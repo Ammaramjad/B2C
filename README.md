@@ -1,6 +1,18 @@
-# ZOUFENG AETHER — B2C International Mobility OS
+# Zoufeng Atlas — Mobility & Travel OS
 
-Futuristic passenger, driver, and operations demo for the Zoufeng v11 / v12.1 blueprint: airport transfers, point-to-point, charter, taxi, self-drive, designated driver, AI itinerary, live OTP/SOS, wallet, loyalty, Halo support, and ops console.
+Design-foundation prototype for Zoufeng International. Three operating systems share tokens but not chrome:
+
+- **Passenger** — travel-commerce marketplace and booking
+- **Driver** — task-oriented duty tool
+- **Operations / Admin** — command room and ledgers
+
+This is **not** production backend work. Payments, flights, dispatch, and FX are simulated.
+
+## Review gate
+
+Open `/design` for tokens, component inventory, and the 47 representative screens.
+
+**Do not proceed to full development until the visual direction is approved.**
 
 ## Run
 
@@ -11,16 +23,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Live share links (use these — old trycloudflare hostnames die):**
+## Roles
 
-1. https://emotions-ceremony-occupation-memory.trycloudflare.com
-2. https://open-papayas-start.loca.lt
-3. https://85fd1f69589d25.lhr.life
+- Passenger: `/` and marketplace booking
+- Driver: `/driver`
+- Operations: `/ops`
+- Admin / finance / growth: `/admin/pricing`
 
-## Demo roles
+## Scripts
 
-- Passenger: any email on `/login`
-- Driver: email containing `driver` or choose Driver
-- Ops: email containing `ops` or choose Operations
-
-Payments, flights, dispatch, and FX are simulated on-device (localStorage).
+```bash
+npm run lint
+npm run build
+```
