@@ -1,5 +1,5 @@
-import { TPE_T1, haversine } from "./geo";
-import { vehicleFits } from "./capacity";
+import { TPE_T1, haversine } from "./geo.ts";
+import { vehicleFits } from "./capacity.ts";
 import type { Candidate, LiveDriver } from "./types";
 
 export type RankNeed = {
@@ -37,6 +37,10 @@ export function rankReplacements(drivers: LiveDriver[], need: RankNeed): Candida
       return row;
     })
     .sort((a, b) => a.score - b.score)
-    .map(({ score: _score, ...row }) => row)
+    .map((row) => {
+      const { score: _ignored, ...rest } = row;
+      void _ignored;
+      return rest as Candidate;
+    })
     .slice(0, 3);
 }

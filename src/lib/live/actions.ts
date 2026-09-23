@@ -1,6 +1,6 @@
-import { rankReplacements } from "./rank";
-import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred";
-import { makeEvent } from "./events";
+import { rankReplacements } from "./rank.ts";
+import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred.ts";
+import { makeEvent } from "./events.ts";
 import type { LiveSnapshot } from "./types";
 
 export function applyIncident(s: LiveSnapshot, category: string, note: string): LiveSnapshot {

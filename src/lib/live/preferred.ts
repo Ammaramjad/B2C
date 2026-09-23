@@ -1,4 +1,4 @@
-import { vehicleFits } from "./capacity";
+import { vehicleFits } from "./capacity.ts";
 
 export type PreferredCheck = {
   available: boolean;

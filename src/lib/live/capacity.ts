@@ -1,4 +1,11 @@
-import { vehicles } from "../catalog";
+const CLASSES: Record<string, { seats: number; bags: number; id: string; name: string }> = {
+  sedan: { seats: 3, bags: 3, id: "sedan", name: "Sedan" },
+  premium: { seats: 3, bags: 3, id: "premium", name: "Premium" },
+  suv: { seats: 4, bags: 4, id: "suv", name: "SUV" },
+  mpv: { seats: 6, bags: 6, id: "mpv", name: "MPV" },
+  van: { seats: 8, bags: 8, id: "van", name: "Van" },
+  shuttle: { seats: 10, bags: 1, id: "shuttle", name: "Shuttle" },
+};
 
 const klassToId: Record<string, string> = {
   Sedan: "sedan",
@@ -11,8 +18,7 @@ const klassToId: Record<string, string> = {
 
 export function capacityFor(klass: string) {
   const id = klassToId[klass] ?? klass.toLowerCase();
-  const v = vehicles.find((x) => x.id === id);
-  return { seats: v?.seats ?? 3, bags: v?.luggage ?? 3, id: v?.id ?? "sedan", name: v?.name ?? klass };
+  return CLASSES[id] ?? CLASSES.sedan;
 }
 
 export function vehicleFits(klass: string, pax: number, bags: number) {
@@ -21,9 +27,9 @@ export function vehicleFits(klass: string, pax: number, bags: number) {
 }
 
 export function recommendFor(pax: number, bags: number) {
-  return vehicles
-    .filter((v) => v.seats >= pax && v.luggage >= bags && v.id !== "shuttle")
-    .sort((a, b) => a.base - b.base)
+  return Object.values(CLASSES)
+    .filter((v) => v.seats >= pax && v.bags >= bags && v.id !== "shuttle")
+    .sort((a, b) => a.seats - b.seats)
     .map((v) => v.name);
 }
 

@@ -1,4 +1,4 @@
-import { APPROACH_DAVID, TPE_T1 } from "./geo";
+import { APPROACH_DAVID, TPE_T1 } from "./geo.ts";
 import type { LiveDriver, LiveSnapshot } from "./types";
 
 export const BOOKING = "ZF-82041";

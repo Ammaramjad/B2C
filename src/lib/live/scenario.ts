@@ -1,7 +1,7 @@
-import { APPROACH_DAVID, ROUTE_TPE_TPE101, TAIPEI_101, TPE_T1, along, haversine, heading } from "./geo";
-import { rankReplacements } from "./rank";
-import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred";
-import { makeEvent } from "./events";
+import { APPROACH_DAVID, ROUTE_TPE_TPE101, TAIPEI_101, TPE_T1, along, haversine, heading } from "./geo.ts";
+import { rankReplacements } from "./rank.ts";
+import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred.ts";
+import { makeEvent } from "./events.ts";
 import type { LiveSnapshot } from "./types";
 
 export function animateTick(s: LiveSnapshot): LiveSnapshot {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useState } from "react";
+import { useState } from "react";
+import { useParams } from "next/navigation";
 import { money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
