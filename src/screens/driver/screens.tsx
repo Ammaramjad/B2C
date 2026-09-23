@@ -67,12 +67,12 @@ export function DriverOffer() {
           <div className="flex justify-between"><dt>Est. net</dt><dd className="metric">NT$1,144</dd></div>
         </dl>
       </Ticket>
-      <div className="grid grid-cols-2 gap-2">
-        <Btn kind="ghost" className="min-h-16 text-lg" onClick={() => router.push("/driver")}>
+      <div className="grid grid-cols-[1fr_1.4fr] gap-2">
+        <Btn kind="ghost" className="min-h-20 text-xl" onClick={() => router.push("/driver")}>
           Reject
         </Btn>
-        <Btn className="min-h-16 text-lg" onClick={() => router.push("/driver/pickup")}>
-          Accept
+        <Btn className="min-h-20 text-xl" onClick={() => router.push("/driver/pickup")}>
+          ACCEPT
         </Btn>
       </div>
     </div>

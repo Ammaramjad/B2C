@@ -12,7 +12,7 @@ const tabs = [
 export function DriverChrome({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   return (
-    <div className="mx-auto min-h-screen max-w-[430px] border-x border-[var(--rule)]">
+    <div className="mx-auto min-h-screen max-w-[430px] border-x border-[var(--rule)] bg-[var(--canvas)] shadow-[var(--elev-3)]">
       <header className="flex items-center justify-between px-4 py-3">
         <div>
           <div className="kicker">Driver OS</div>
