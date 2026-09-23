@@ -22,7 +22,8 @@ import type {
   User,
 } from "./types";
 
-const KEY = "zoudian-v10-web";
+const KEY = "zoudian-v2030-web";
+export type Theme = "dark" | "light";
 
 interface Draft {
   service: ServiceType;
@@ -48,6 +49,8 @@ interface Store {
   setLocale: (l: Locale) => void;
   currency: Currency;
   setCurrency: (c: Currency) => void;
+  theme: Theme;
+  setTheme: (t: Theme) => void;
   user: User | null;
   login: (email: string, role?: Role) => void;
   logout: () => void;
@@ -95,8 +98,9 @@ const defaultDraft: Draft = {
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("zh");
+  const [locale, setLocale] = useState<Locale>("en");
   const [currency, setCurrency] = useState<Currency>("TWD");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [user, setUser] = useState<User | null>(null);
   const [draft, setDraftState] = useState<Draft>(defaultDraft);
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
@@ -114,8 +118,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || "null");
       if (s) {
-        setLocale(s.locale === "en" ? "en" : "zh");
+        setLocale(s.locale === "zh" ? "zh" : "en");
         setCurrency(s.currency === "USD" ? "USD" : "TWD");
+        if (s.theme === "light" || s.theme === "dark") setTheme(s.theme);
         setUser(s.user ?? null);
         setDraftState({ ...defaultDraft, ...s.draft });
         if (Array.isArray(s.bookings) && s.bookings[0]?.id?.startsWith("ZD-")) setBookings(s.bookings);
@@ -131,8 +136,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(KEY, JSON.stringify({ locale, currency, user, draft, bookings, switches, recent, cancelMidPct }));
-  }, [locale, currency, user, draft, bookings, switches, recent, cancelMidPct, hydrated]);
+    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct }));
+  }, [locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct, hydrated]);
 
   const lastDriverId = (passengerId?: string) => {
     const pid = passengerId ?? user?.id ?? "p1";
@@ -149,6 +154,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLocale,
       currency,
       setCurrency,
+      theme,
+      setTheme,
       user,
       login: (email, role) => {
         const e = email.toLowerCase();
@@ -305,7 +312,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelMidPct,
       setCancelMidPct,
     }),
-    [locale, currency, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

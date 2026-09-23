@@ -20,13 +20,13 @@ export function AreaChart({
   const fill = `0,${h} ${pts} ${w},${h}`;
   return (
     <div>
-      {label && <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/40">{label}</div>}
+      {label && <div className="label mb-2">{label}</div>}
       <svg viewBox={`0 0 ${w} ${h}`} className="h-24 w-full">
-        <polyline points={fill} fill="rgba(78,242,255,0.16)" />
+        <polyline points={fill} fill="rgba(47,107,255,0.16)" />
         <polyline
           points={pts}
           fill="none"
-          stroke="#4ef2ff"
+          stroke="#2f6bff"
           strokeWidth="2.4"
           className="chart-stroke"
         />
@@ -45,13 +45,13 @@ export function Bars({
     <div className="space-y-2">
       {items.map((i, idx) => (
         <div key={i.name}>
-          <div className="mb-1 flex justify-between text-[11px] text-white/50">
+          <div className="mb-1 flex justify-between text-[11px] text-[var(--muted)]">
             <span>{i.name}</span>
             <span>{i.value}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/8">
+          <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--muted)_16%,transparent)]">
             <div
-              className="bar-fill h-full rounded-full bg-[linear-gradient(90deg,#4ef2ff,#b08cff,#ff4fd8)]"
+              className="bar-fill h-full rounded-full bg-[var(--primary)]"
               style={{ width: `${(i.value / max) * 100}%`, animationDelay: `${idx * 90}ms` }}
             />
           </div>
