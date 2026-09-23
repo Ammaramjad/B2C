@@ -50,6 +50,8 @@ function getIsClientServerSnapshot() {
   return false;
 }
 
+export type Designate = "standard" | "preferred" | "timeslot" | "premium";
+
 interface Draft {
   service: ServiceType;
   pickup: string;
@@ -67,6 +69,13 @@ interface Draft {
   name: string;
   phone: string;
   channel: Channel;
+  stops: string[];
+  terminal: string;
+  notes: string;
+  designate: Designate;
+  returnAt: string;
+  returnLoc: string;
+  walletApply: boolean;
 }
 
 interface Store {
@@ -104,12 +113,12 @@ interface Store {
 const defaultDraft: Draft = {
   service: "airport_pickup",
   pickup: "TPE T1 Arrivals",
-  dropoff: "Taipei 101",
-  when: "",
-  vehicle: "sedan",
-  passengers: 2,
-  luggage: 2,
-  extras: ["meet"],
+  dropoff: "Da'an",
+  when: "2026-09-24T16:40",
+  vehicle: "mpv",
+  passengers: 5,
+  luggage: 4,
+  extras: ["meet", "child_seat"],
   promo: "",
   flight: "CI101",
   hours: 8,
@@ -118,6 +127,13 @@ const defaultDraft: Draft = {
   name: "Amara Chen",
   phone: "+886 900 880 101",
   channel: "web",
+  stops: [],
+  terminal: "T1",
+  notes: "",
+  designate: "standard",
+  returnAt: "2026-09-26T18:00",
+  returnLoc: "TPE T1 Departures",
+  walletApply: false,
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -137,7 +153,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return {
       locale: (parsed?.locale === "zh" ? "zh" : "en") as Locale,
       currency: (parsed?.currency === "USD" ? "USD" : "TWD") as Currency,
-      theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "dark") as Theme,
+      theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "light") as Theme,
       user: (parsed?.user as User | null | undefined) ?? null,
       draft: { ...defaultDraft, ...(parsed?.draft as Partial<Draft> | undefined) } as Draft,
       bookings:
@@ -228,7 +244,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           role: r,
           points: 4280,
           wallet: { TWD: 12600, USD: 240 },
-          referralCode: "ZOUDIAN-88",
+          referralCode: "ZF-AMARA",
           lastDriverId: r === "passenger" ? "d1" : undefined,
         });
       },

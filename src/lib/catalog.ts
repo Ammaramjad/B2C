@@ -45,6 +45,8 @@ export const extras: Extra[] = [
   { id: "pet", name: "Pet friendly", nameZh: "可攜寵物", price: 200 },
   { id: "one_way_rental", name: "One-way rental", nameZh: "甲租乙還", price: 250, only: ["rental"] },
   { id: "insurance", name: "Extra insurance", nameZh: "加強保險", price: 450, only: ["rental"] },
+  { id: "access", name: "Wheelchair assistance", nameZh: "無障礙協助", price: 0 },
+  { id: "extra_bag", name: "Extra luggage", nameZh: "額外行李", price: 150 },
 ];
 
 export const promos = {

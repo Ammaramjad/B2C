@@ -1,123 +1,243 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Moon, Sun } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { navGroups, screens } from "@/design/screens";
+import { tx } from "@/lib/present";
 import { useStore } from "@/lib/store";
-import { loc } from "@/lib/i18n";
-import type { Locale } from "@/lib/types";
+import type { Currency, Locale } from "@/lib/types";
 
-function ThemeBtn() {
-  const { theme, setTheme } = useStore();
+function Wordmark({ href }: { href: string }) {
   return (
-    <button
-      className="focus-ring grid h-10 w-10 place-items-center rounded-xl hairline"
-      aria-label="Theme"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-    >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
+    <Link href={href} className="zf-wordmark">
+      <span className="zf-seal">豐</span>
+      Zoufeng
+    </Link>
   );
 }
 
-function LocaleBar() {
-  const { locale, setLocale, currency, setCurrency } = useStore();
+function Tools() {
+  const { locale, setLocale, currency, setCurrency, theme, setTheme, user } = useStore();
   return (
-    <div className="flex items-center gap-2">
-      <select className="w-auto py-1.5 text-xs" value={currency} onChange={(e) => setCurrency(e.target.value as never)}>
+    <div className="zf-tools">
+      <select aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
         <option value="TWD">NT$</option>
         <option value="USD">US$</option>
       </select>
-      <select className="w-auto py-1.5 text-xs" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
+      <select aria-label="Language" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>
         <option value="en">EN</option>
         <option value="zh">繁中</option>
       </select>
-      <ThemeBtn />
+      <button type="button" className="zf-btn zf-btn-quiet" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+        {theme === "light" ? "Night" : "Day"}
+      </button>
+      <Link href={user ? "/account" : "/login"} className="zf-textlink">
+        {user ? user.name.split(" ")[0] : "Sign in"}
+      </Link>
     </div>
   );
 }
 
-const customer = [
-  ["/", "Go", "出發"],
-  ["/book", "Book", "預訂"],
-  ["/live", "Live", "即時"],
-  ["/trips", "Trips", "行程"],
-  ["/account", "You", "我的"],
-] as const;
-
-export function Shell({ children }: { children: React.ReactNode }) {
+function PassengerShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { locale, user, theme } = useStore();
-  const driver = path.startsWith("/driver");
-  const ops = path.startsWith("/ops");
-  const admin = path.startsWith("/admin");
-  const desk = driver || ops || admin;
-
+  const { locale } = useStore();
+  const on = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   return (
-    <div className="os" data-theme={theme}>
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_86%,transparent)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <Link href={driver ? "/driver" : ops ? "/ops" : admin ? "/admin" : "/"} className="display text-lg">
-            ZOUDIAN
-            <span className="ml-2 text-xs font-normal text-[var(--muted)]">
-              {driver ? loc(locale, "Driver", "司機") : ops ? loc(locale, "Operations", "調度") : admin ? loc(locale, "Admin", "管理") : loc(locale, "Mobility", "移動")}
-            </span>
-          </Link>
-          {!desk && (
-            <nav className="hidden items-center gap-1 lg:flex">
-              {customer.map(([href, en, zh]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`rounded-xl px-3 py-2 text-sm ${
-                    href === "/" ? path === "/" : path.startsWith(href) ? "bg-[var(--surface)]" : "text-[var(--muted)]"
-                  }`}
-                >
-                  {locale === "zh" ? zh : en}
-                </Link>
-              ))}
-            </nav>
-          )}
-          {ops && (
-            <nav className="hidden gap-3 text-sm md:flex">
-              <Link href="/ops">Map</Link>
-              <Link href="/admin" className="text-[var(--muted)]">Admin</Link>
-            </nav>
-          )}
-          <div className="flex items-center gap-2">
-            <LocaleBar />
-            {!desk && (
-              <>
-                <Link href="/driver" className="hidden text-xs text-[var(--muted)] md:inline">
-                  {loc(locale, "Driver", "司機")}
-                </Link>
-                <Link href="/ops" className="hidden text-xs text-[var(--muted)] md:inline">
-                  {loc(locale, "Ops", "調度")}
-                </Link>
-                <Link href="/admin" className="hidden text-xs text-[var(--muted)] md:inline">
-                  Admin
-                </Link>
-              </>
-            )}
-            <Link
-              href={user ? (user.role === "driver" ? "/driver" : user.role === "ops" || user.role === "dispatcher" ? "/ops" : "/account") : "/login"}
-              className="rounded-xl bg-[var(--primary)] px-3 py-2 text-sm font-semibold text-[var(--primary-ink)]"
-            >
-              {user ? user.name.split(" ")[0] : loc(locale, "Enter", "進入")}
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main className={`mx-auto w-full px-4 py-6 pb-24 ${ops || admin ? "max-w-[1400px]" : "max-w-7xl"}`}>{children}</main>
-      {!desk && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] p-2 backdrop-blur-xl lg:hidden">
-          {customer.map(([href, en, zh]) => (
-            <Link key={href} href={href} className="py-2 text-center text-[11px] text-[var(--muted)]">
-              {locale === "zh" ? zh : en}
+    <div className="zf-passenger">
+      <a href="#content" className="zf-skip zf-btn zf-btn-line">
+        Skip to content
+      </a>
+      <header className="zf-mast">
+        <Wordmark href="/" />
+        <nav className="zf-nav" aria-label="Passenger">
+          {navGroups.passenger.map((item) => (
+            <Link key={item.href} href={item.href} data-on={on(item.href)}>
+              {tx(locale, item.en, item.zh)}
             </Link>
           ))}
         </nav>
-      )}
+        <Tools />
+      </header>
+      <div id="content">{children}</div>
+      <nav className="zf-tabbar" aria-label="Mobile">
+        {navGroups.passengerMobile.map((item) => (
+          <Link key={item.href} href={item.href} data-on={on(item.href)}>
+            {tx(locale, item.en, item.zh)}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
+}
+
+function DriverShell({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const { locale } = useStore();
+  return (
+    <div className="zf-driver">
+      <header className="zf-dutybar">
+        <Wordmark href="/driver" />
+        <span className="zf-note">{tx(locale, "Driver", "司機")}</span>
+        <Tools />
+      </header>
+      <div id="content">{children}</div>
+      <nav className="zf-tabbar" style={{ display: "flex" }} aria-label="Driver">
+        {navGroups.driver.map((item) => (
+          <Link key={item.href} href={item.href} data-on={path === item.href}>
+            {tx(locale, item.en, item.zh)}
+          </Link>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+const opsNav = [
+  ["Command", "/ops"],
+  ["Queue", "/ops/queue"],
+  ["Dispatch", "/ops/dispatch"],
+  ["Fleet map", "/ops/fleet-map"],
+  ["Flights", "/ops/flights"],
+  ["Drivers", "/ops/drivers"],
+  ["Fleets", "/ops/fleet"],
+  ["Manual order", "/ops/manual"],
+  ["Safety", "/ops/safety"],
+  ["Support", "/ops/support"],
+] as const;
+
+const adminNav = [
+  ["Network", [["Vehicles", "/admin/vehicles"], ["Accounts", "/admin/accounts"], ["Corporate", "/admin/corporate"]]],
+  ["Commerce", [["Pricing", "/admin/pricing"], ["Cancellation", "/admin/cancellation"], ["Promotions", "/admin/promotions"], ["Referrals", "/admin/referrals"]]],
+  ["Finance", [["Payments", "/admin/payments"], ["Refunds", "/admin/refunds"], ["Settlements", "/admin/settlements"], ["Wallet ledger", "/admin/wallet"]]],
+  ["Care", [["CRM", "/admin/crm"], ["Notifications", "/admin/notifications"]]],
+  ["Insight", [["Analytics", "/admin/analytics"]]],
+  ["System", [["Parameters", "/admin/parameters"], ["Translation", "/admin/translations"], ["Integrations", "/admin/integrations"], ["Audit", "/admin/audit"]]],
+] as const;
+
+function DeskShell({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const router = useRouter();
+  const admin = path.startsWith("/admin");
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const results = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return screens.slice(0, 8);
+    return screens.filter((s) => `${s.name} ${s.href} ${s.note}`.toLowerCase().includes(query)).slice(0, 8);
+  }, [q]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="zf-desk">
+      <header className="zf-desk-top">
+        <Wordmark href={admin ? "/admin/pricing" : "/ops"} />
+        <div className="zf-desk-switch">
+          <Link href="/ops" data-on={!admin}>
+            Operations
+          </Link>
+          <Link href="/admin/pricing" data-on={admin}>
+            Administration
+          </Link>
+        </div>
+        <input
+          className="zf-search"
+          placeholder="Search bookings, flights, screens"
+          aria-label="Command search"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && results[0]) router.push(results[0].href);
+          }}
+        />
+        <span className="zf-note zf-hide-sm">Maps live · Flight feed degraded</span>
+        <Tools />
+        {open && (
+          <div className="zf-palette" role="listbox">
+            {results.map((s) => (
+              <Link key={s.href + s.name} href={s.href} onClick={() => setOpen(false)}>
+                {s.n ? `${s.n}. ` : ""}
+                {s.name}
+                <span className="zf-note"> {s.href}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </header>
+      <nav className="zf-desk-nav" aria-label={admin ? "Administration" : "Operations"}>
+        {admin ? (
+          adminNav.map(([group, links]) => (
+            <div key={group}>
+              <p>{group}</p>
+              {links.map(([label, href]) => (
+                <Link key={href} href={href} data-on={path === href}>
+                  {label}
+                </Link>
+              ))}
+            </div>
+          ))
+        ) : (
+          <>
+            <p>Desk</p>
+            {opsNav.map(([label, href]) => (
+              <Link key={href} href={href} data-on={path === href}>
+                {label}
+                {href === "/ops/safety" && <span>1</span>}
+              </Link>
+            ))}
+            <p>Also</p>
+            <Link href="/design">Design studio</Link>
+          </>
+        )}
+      </nav>
+      <div className="zf-desk-main" id="content">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  if (path.startsWith("/driver")) return <DriverShell>{children}</DriverShell>;
+  if (path.startsWith("/ops") || path.startsWith("/admin")) return <DeskShell>{children}</DeskShell>;
+  if (path.startsWith("/login")) return <div className="zf-bare">{children}</div>;
+  if (path.startsWith("/design")) {
+    return (
+      <div className="zf-passenger">
+        <header className="zf-mast">
+          <Wordmark href="/design" />
+          <nav className="zf-nav">
+            <Link href="/design" data-on={path === "/design"}>
+              Foundation
+            </Link>
+            <Link href="/design/states" data-on={path.startsWith("/design/states")}>
+              States
+            </Link>
+            <Link href="/">Passenger</Link>
+            <Link href="/driver">Driver</Link>
+            <Link href="/ops">Operations</Link>
+          </nav>
+          <Tools />
+        </header>
+        {children}
+      </div>
+    );
+  }
+  return <PassengerShell>{children}</PassengerShell>;
 }

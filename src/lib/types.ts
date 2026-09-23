@@ -24,7 +24,7 @@ export type BookingStatus =
 export type VehicleClass = "sedan" | "premium" | "suv" | "mpv" | "van" | "shuttle";
 export type TaxiClass = "taxi" | "plus" | "xl" | "black";
 export type RentalClass = "yaris" | "cross" | "sienta";
-export type ExtraId = "meet" | "child_seat" | "english" | "pet" | "one_way_rental" | "insurance";
+export type ExtraId = "meet" | "child_seat" | "english" | "pet" | "one_way_rental" | "insurance" | "access" | "extra_bag";
 export type Channel = "web" | "app" | "dispatch" | "taxi" | "hourly" | "rental";
 export type FilterId = "instant" | "ev" | "prem" | "wheel" | "meet";
 export type SortId = "price" | "phigh" | "rate" | "pop";
@@ -149,7 +149,7 @@ export interface Booking {
   commission: number;
   driverNet: number;
   channel: Channel;
-  payment: "card" | "line" | "apple" | "cash";
+  payment: "card" | "line" | "apple" | "google" | "cash" | "wallet";
 }
 
 export interface SwitchRequest {

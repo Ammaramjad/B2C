@@ -1,6 +1,6 @@
-# ZOUFENG AETHER — B2C International Mobility OS
+# Zoufeng — International Mobility
 
-Futuristic passenger, driver, and operations demo for the Zoufeng v11 / v12.1 blueprint: airport transfers, point-to-point, charter, taxi, self-drive, designated driver, AI itinerary, live OTP/SOS, wallet, loyalty, Halo support, and ops console.
+Design foundation for the passenger, driver, and operations products. This preview is not approved for full product development.
 
 ## Run
 
@@ -9,18 +9,12 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The design studio, with the route map and screen inventory, is at [http://localhost:3000/design](http://localhost:3000/design).
 
-**Live share links (use these — old trycloudflare hostnames die):**
+## Roles
 
-1. https://emotions-ceremony-occupation-memory.trycloudflare.com
-2. https://open-papayas-start.loca.lt
-3. https://85fd1f69589d25.lhr.life
+- Passenger: any email on `/login`, or continue as Amara
+- Driver: continue as Kenji
+- Operations: continue as Nova
 
-## Demo roles
-
-- Passenger: any email on `/login`
-- Driver: email containing `driver` or choose Driver
-- Ops: email containing `ops` or choose Operations
-
-Payments, flights, dispatch, and FX are simulated on-device (localStorage).
+Payments, flights, dispatch, and exchange rates are simulated in the browser.
