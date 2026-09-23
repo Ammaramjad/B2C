@@ -19,4 +19,7 @@ export const productionProvider: GeoProvider = {
   async traffic() {
     throw new Error("Production traffic is not configured");
   },
+  async roadIncidents() {
+    throw new Error("Production road incidents are not configured");
+  },
 };

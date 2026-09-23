@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { resolveBooking } from "@/lib/domain/booking";
 import { money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
@@ -51,7 +52,8 @@ export function SignalTrips() {
 export function SignalSuccess() {
   const { id } = useParams<{ id: string }>();
   const { bookings } = useStore();
-  const b = bookings.find((x) => x.id === id);
+  const { live } = useLive();
+  const b = resolveBooking(id, bookings, live);
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <div className="zf-chip ok">Paid</div>
@@ -61,10 +63,10 @@ export function SignalSuccess() {
       </p>
       <div className="zf-panel mt-6 p-4">
         <div className="font-semibold">
-          {b?.pickup} → {b?.dropoff}
+          {b?.pickup ?? live.pickup} → {b?.dropoff ?? live.dropoff}
         </div>
         <div className="text-sm">
-          {b?.flight} · {b?.vehicle} · {b ? money(b.price, b.currency) : ""}
+          {(b?.flight ?? live.flight) || "—"} · {b?.vehicle ?? "mpv"} · {b ? money(b.price, b.currency) : `NT$${live.fare.toLocaleString()}`}
         </div>
       </div>
       <div className="mt-4 flex gap-2">
@@ -81,9 +83,9 @@ export function SignalSuccess() {
 
 export function SignalTripDetail() {
   const { id } = useParams<{ id: string }>();
-  const { bookings } = useStore();
+  const { bookings, cancel } = useStore();
   const { live } = useLive();
-  const b = bookings.find((x) => x.id === id);
+  const b = resolveBooking(id, bookings, live);
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <div className="kicker">{b?.id ?? id}</div>
@@ -100,6 +102,12 @@ export function SignalTripDetail() {
       <Link href="/live" className="zf-btn wide mt-4">
         Open live pickup
       </Link>
+      {b && b.status !== "completed" && b.status !== "cancelled" ? (
+        <button type="button" className="zf-btn ghost wide mt-2" data-testid="cancel-booking" onClick={() => cancel(b.id)}>
+          Cancel · policy calculator
+        </button>
+      ) : null}
+      {b?.status === "cancelled" ? <p className="mt-2 text-sm">Cancelled. Refundable amount follows cancellation policy (see admin studio).</p> : null}
     </div>
   );
 }

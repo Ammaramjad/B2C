@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { deriveCounters } from "@/lib/domain/booking";
+import { formatMetric, scorecardFromCatalog } from "@/lib/live/metrics";
 import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
+import { drivers } from "@/lib/data";
+import { useStore } from "@/lib/store";
 
 function Counters() {
   const { live } = useLive();
-  const c = live.counters;
+  const { bookings } = useStore();
+  const c = deriveCounters(live, bookings);
   const items = [
     ["Active", c.active],
     ["Unassigned", c.unassigned],
@@ -82,7 +87,13 @@ export function BookingInspector() {
 
 export function Driver360({ id }: { id: string }) {
   const { live } = useLive();
+  const { bookings, domain } = useStore();
   const d = live.drivers.find((x) => x.id === id) ?? live.drivers[0];
+  const catalog = drivers.find((x) => x.name === d.name) ?? drivers[0];
+  const card = scorecardFromCatalog(catalog, bookings, live.incident?.driverId === d.id ? 1 : live.counters.incidents, {
+    rejects: live.rejects[d.id] ?? domain.rejects.filter((r) => r.driverId === d.id).length,
+    punctuality: domain.punctuality,
+  });
   return (
     <div className="space-y-2 text-sm">
       <div className="kicker">Driver 360</div>
@@ -91,15 +102,15 @@ export function Driver360({ id }: { id: string }) {
         {d.id} · Fleet {d.fleet} · {d.vehicle} · {d.plate}
       </div>
       <div>
-        {d.state} · {d.loc.lat.toFixed(4)}, {d.loc.lng.toFixed(4)}
+        {d.state} · {d.duty} · {d.loc.lat.toFixed(4)}, {d.loc.lng.toFixed(4)}
       </div>
       <div className="grid grid-cols-2 gap-2 pt-2">
         {[
-          ["30-day", "84"],
-          ["On-time", "76"],
-          ["Late", "8"],
-          ["Avg delay", "5.4m"],
-          ["Accept", `${Math.round(d.accept * 100)}%`],
+          ["Ledger rides", formatMetric(card.totalRides)],
+          ["On-time", formatMetric(card.onTimePickups)],
+          ["Late", formatMetric(card.latePickups)],
+          ["Avg delay", formatMetric(card.averageLateMinutes, "min")],
+          ["Accept", formatMetric(card.acceptanceRate, "pct")],
           ["Rating", d.rating],
         ].map(([k, v]) => (
           <div key={k} className="zf-panel p-2">

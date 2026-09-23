@@ -80,16 +80,19 @@ export function FlightOps() {
 
 export function Driver360Page({ id }: { id?: string }) {
   const { live } = useLive();
-  const { bookings } = useStore();
+  const { bookings, domain } = useStore();
   const liveD = live.drivers.find((d) => d.id === (id ?? live.assignedId ?? "D-118")) ?? live.drivers[0];
   const catalog = drivers.find((d) => d.name === liveD.name) ?? drivers[0];
-  const card = scorecardFromCatalog(catalog, bookings, live.incident?.driverId === liveD.id ? 1 : 0);
+  const card = scorecardFromCatalog(catalog, bookings, live.incident?.driverId === liveD.id ? 1 : 0, {
+    rejects: live.rejects[liveD.id] ?? domain.rejects.filter((r) => r.driverId === liveD.id).length,
+    punctuality: domain.punctuality,
+  });
   const mine = bookings.filter((b) => b.driverId === catalog.id);
   return (
     <div className="grid min-h-[calc(100vh-96px)] lg:grid-cols-[1.1fr_0.9fr]">
       <MapMount mode="night" height="100%" />
       <aside className="overflow-auto p-4 space-y-4">
-        <div className="kicker">Driver 360</div>
+        <div className="kicker">LIVE · PERFORMANCE · ASSIGNMENTS · TRIPS · PUNCTUALITY · INCIDENTS · PREFERRED · FINANCIAL · DOCUMENTS · AUDIT</div>
         <h1 className="display text-4xl">{liveD.name}</h1>
         <div className="text-sm">
           {liveD.id} · {liveD.duty} · {liveD.state} · Fleet {liveD.fleet} · {liveD.vehicle} · {liveD.plate}
@@ -125,6 +128,14 @@ export function Driver360Page({ id }: { id?: string }) {
           {mine.map((b) => (
             <li key={b.id}>
               {b.id} · {b.status} · {b.pickup}
+            </li>
+          ))}
+        </ul>
+        <div className="kicker">Punctuality records</div>
+        <ul className="zf-stream">
+          {domain.punctuality.filter((p) => p.driverId === liveD.id || p.driverId === catalog.id).map((p) => (
+            <li key={p.id}>
+              {p.bookingId} · late {p.lateMin}m
             </li>
           ))}
         </ul>
@@ -345,6 +356,65 @@ export function VehicleDesk() {
             ))}
           </tbody>
         </table>
+      </aside>
+    </div>
+  );
+}
+
+export function PreferredQueue() {
+  const { live, validatePreferred, rejectPreferred, offerPreferred } = useLive();
+  const david = live.drivers[0];
+  const st = live.preferred?.status;
+  async function companyValidate() {
+    const res = await fetch("/api/preferred/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        klass: david.klass,
+        pax: 5,
+        bags: 4,
+        premiumPct: live.preferred?.premiumPct ?? 18,
+        available: david.state === "available" || david.state === "to_pickup",
+      }),
+    });
+    const data = (await res.json()) as { ok: boolean };
+    if (data.ok) validatePreferred();
+    else rejectPreferred();
+  }
+  return (
+    <div className="grid min-h-[calc(100vh-96px)] lg:grid-cols-[1fr_420px]">
+      <MapMount mode="night" height="100%" />
+      <aside className="space-y-3 overflow-auto p-4">
+        <h1 className="display text-3xl">Preferred request queue</h1>
+        <p className="text-sm">Company mediation only. Passenger cannot issue a commercial offer.</p>
+        {live.preferred ? (
+          <div className="zf-panel p-3 text-sm">
+            <div className="kicker">{live.preferred.id} · {st}</div>
+            <div>{live.preferred.customer} → {david.name}</div>
+            <div>{david.ridesWithSarah} rides together · {live.preferred.service} · {david.klass}</div>
+            <div>Premium {live.preferred.premiumPct}% · {live.preferred.schedule}</div>
+            <div>Eligibility: {david.state} · fleet {david.fleet}</div>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--mute)]">No open preferred request.</p>
+        )}
+        {st === "requested" ? (
+          <button type="button" className="zf-btn wide" data-testid="preferred-validate" onClick={() => void companyValidate()}>
+            Approve + validate
+          </button>
+        ) : null}
+        {st === "validating" ? (
+          <button type="button" className="zf-btn wide" data-testid="preferred-offer" onClick={offerPreferred}>
+            Send company offer
+          </button>
+        ) : null}
+        {st === "requested" || st === "validating" ? (
+          <button type="button" className="zf-btn ghost wide" onClick={rejectPreferred}>
+            Decline / alternative
+          </button>
+        ) : null}
+        {st === "offered" ? <p className="text-sm">Official offer is on the driver offer screen.</p> : null}
+        {st === "confirmed" ? <p className="font-semibold">{live.customerNotice}</p> : null}
       </aside>
     </div>
   );

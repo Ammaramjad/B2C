@@ -33,4 +33,7 @@ export const simulationProvider: GeoProvider = {
   async traffic() {
     return { level: "clear", note: "SIMULATED REALTIME · not a production GPS feed", source: "simulation" };
   },
+  async roadIncidents() {
+    return [{ id: "sim-road-0", note: "No production road-incident feed", source: "simulation" }];
+  },
 };

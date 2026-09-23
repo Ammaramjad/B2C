@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { extras as extraCat } from "./catalog";
 import { drivers, passengers, seedBookings, seedSettlements, seedSwitches, seedTickets } from "./data";
+import { emptyDomain, type CrmNote, type DomainState, type ShareRecord } from "./domain/persist";
+import { mintShareToken } from "./domain/share";
 import { loc } from "./i18n";
 import { cancelFee, COMMISSION, quote } from "./pricing";
 import type {
@@ -22,7 +24,8 @@ import type {
   User,
 } from "./types";
 
-const KEY = "zoufeng-atlas-v1";
+const KEY = "zf-signal-domain-v1";
+const LEGACY_KEY = "zoufeng-atlas-v1";
 export type Theme = "dark" | "light";
 
 function subscribePersist(onChange: () => void) {
@@ -32,7 +35,7 @@ function subscribePersist(onChange: () => void) {
 
 function getPersistSnapshot() {
   try {
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
   } catch {
     return null;
   }
@@ -99,6 +102,11 @@ interface Store {
   lastDriverId: (passengerId?: string) => string | undefined;
   cancelMidPct: number;
   setCancelMidPct: (n: number) => void;
+  domain: DomainState;
+  patchBooking: (id: string, patch: Partial<Booking>) => void;
+  recordReject: (driverId: string, bookingId: string) => void;
+  createShare: (bookingId: string) => ShareRecord;
+  addNote: (passengerId: string, body: string) => CrmNote;
 }
 
 const defaultDraft: Draft = {
@@ -140,13 +148,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "light") as Theme,
       user: (parsed?.user as User | null | undefined) ?? null,
       draft: { ...defaultDraft, ...(parsed?.draft as Partial<Draft> | undefined) } as Draft,
-      bookings:
-        Array.isArray(parsed?.bookings) && (parsed.bookings as Booking[])[0]?.id?.startsWith("ZD-")
-          ? (parsed.bookings as Booking[])
-          : seedBookings,
+      bookings: (() => {
+        const raw = Array.isArray(parsed?.bookings) ? (parsed.bookings as Booking[]) : [];
+        const ok = raw[0]?.id?.startsWith("ZD-") || raw[0]?.id?.startsWith("ZF-");
+        const base = ok ? raw : seedBookings;
+        const tape = seedBookings.find((b) => b.id === "ZF-82041");
+        return tape && !base.some((b) => b.id === "ZF-82041") ? [tape, ...base] : base;
+      })(),
       switches: Array.isArray(parsed?.switches) ? (parsed.switches as SwitchRequest[]) : seedSwitches,
       recent: Array.isArray(parsed?.recent) ? (parsed.recent as string[]) : [],
       cancelMidPct: typeof parsed?.cancelMidPct === "number" ? parsed.cancelMidPct : 0.5,
+      domain: {
+        ...emptyDomain(),
+        ...((parsed?.domain as DomainState | undefined) ?? {}),
+        mode: "demo" as const,
+      },
     };
   }, [persistRaw]);
 
@@ -159,6 +175,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const persistedSwitches = persisted.switches;
   const persistedRecent = persisted.recent;
   const persistedCancelMidPct = persisted.cancelMidPct;
+  const persistedDomain = persisted.domain;
 
   const [localeState, setLocale] = useState<Locale | undefined>(undefined);
   const [currencyState, setCurrency] = useState<Currency | undefined>(undefined);
@@ -174,6 +191,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   ]);
   const [recentState, setRecentState] = useState<string[] | undefined>(undefined);
   const [cancelMidPctState, setCancelMidPct] = useState<number | undefined>(undefined);
+  const [domainState, setDomainState] = useState<DomainState | undefined>(undefined);
 
   const locale = localeState ?? persistedLocale;
   const currency = currencyState ?? persistedCurrency;
@@ -184,6 +202,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const switches = switchesState ?? persistedSwitches;
   const recent = recentState ?? persistedRecent;
   const cancelMidPct = cancelMidPctState ?? persistedCancelMidPct;
+  const domain = domainState ?? persistedDomain;
 
   const setBookings = useCallback(
     (updater: (xs: Booking[]) => Booking[]) => setBookingsState((xs) => updater(xs ?? persistedBookings)),
@@ -196,8 +215,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isClient) return;
-    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct }));
-  }, [isClient, locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct]);
+    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct, domain }));
+  }, [isClient, locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct, domain]);
 
   const value = useMemo<Store>(
     () => ({
@@ -370,8 +389,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       cancelMidPct,
       setCancelMidPct,
+      domain,
+      patchBooking: (id, patch) => setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, ...patch } : b))),
+      recordReject: (driverId, bookingId) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return {
+            ...cur,
+            rejects: [...cur.rejects, { id: `RJ-${Date.now()}`, driverId, bookingId, at: Date.now() }],
+            audit: [{ id: `AU-${Date.now()}`, at: new Date().toISOString(), actor: driverId, action: "offer.rejected", entity: bookingId, detail: "Driver rejected company offer" }, ...cur.audit],
+          };
+        }),
+      createShare: (bookingId) => {
+        const rec = mintShareToken(bookingId);
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return {
+            ...cur,
+            shares: [rec, ...cur.shares],
+            audit: [{ id: `AU-${Date.now()}`, at: new Date().toISOString(), actor: "passenger", action: "trip.shared", entity: bookingId, detail: rec.token }, ...cur.audit],
+          };
+        });
+        return rec;
+      },
+      addNote: (passengerId, body) => {
+        const note: CrmNote = { id: `NT-${Date.now()}`, passengerId, body, author: "ops", at: new Date().toISOString() };
+        setDomainState((d) => ({ ...(d ?? persistedDomain), notes: [note, ...(d ?? persistedDomain).notes] }));
+        return note;
+      },
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, persistedDraft, persistedRecent, setBookings, setSwitches],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
