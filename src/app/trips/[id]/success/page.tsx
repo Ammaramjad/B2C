@@ -1,7 +1,7 @@
 "use client";
 
-import { ConfirmationScreen } from "@/screens/passenger/rest";
+import { SignalSuccess } from "@/screens/signal/trips";
 
 export default function Page() {
-  return <ConfirmationScreen />;
+  return <SignalSuccess />;
 }

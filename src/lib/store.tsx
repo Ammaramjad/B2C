@@ -82,7 +82,7 @@ interface Store {
   draft: Draft;
   setDraft: (p: Partial<Draft>) => void;
   bookings: Booking[];
-  placeBooking: () => Booking;
+  placeBooking: (override?: Partial<Draft>) => Booking;
   advance: (id: string, status?: BookingStatus) => void;
   cancel: (id: string) => void;
   assignDriver: (id: string, driverId: string) => void;
@@ -236,46 +236,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       draft,
       setDraft: (p) => setDraftState((d) => ({ ...(d ?? persistedDraft), ...p })),
       bookings,
-      placeBooking: () => {
-        const routeCount = bookings.filter((b) => b.pickup === draft.pickup && b.dropoff === draft.dropoff).length;
+      placeBooking: (override) => {
+        const d = { ...draft, ...override };
+        const routeCount = bookings.filter((b) => b.pickup === d.pickup && b.dropoff === d.dropoff).length;
         const q = quote({
-          service: draft.service,
-          vehicle: draft.vehicle,
-          extras: draft.extras,
-          promo: draft.promo,
-          when: draft.when,
-          hours: draft.hours,
-          days: draft.days,
+          service: d.service,
+          vehicle: d.vehicle,
+          extras: d.extras,
+          promo: d.promo,
+          when: d.when,
+          hours: d.hours,
+          days: d.days,
           surge: routeCount >= 2,
         });
         const online = drivers.filter((d) => d.work === "available" && d.status === "approved");
-        const preferEn = draft.extras.includes("english");
+        const preferEn = d.extras.includes("english");
         const scored = [...online].sort((a, b) => {
           const fleet = { A: 3, B: 2, C: 1 };
           const sa = fleet[a.fleet] * 10 + (preferEn && a.languages.includes("EN") ? 2 : 0) + a.rating;
           const sb = fleet[b.fleet] * 10 + (preferEn && b.languages.includes("EN") ? 2 : 0) + b.rating;
           return sb - sa;
         });
-        const driver = draft.service === "rental" ? undefined : scored[0];
+        const driver = d.service === "rental" ? undefined : scored[0];
         const ch: Channel =
-          draft.service === "instant" ? "taxi" : draft.service === "hourly" ? "hourly" : draft.service === "rental" ? "rental" : draft.channel;
+          d.service === "instant" ? "taxi" : d.service === "hourly" ? "hourly" : d.service === "rental" ? "rental" : d.channel;
         const b: Booking = {
-          id: `ZD-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-          service: draft.service,
-          status: draft.service === "instant" ? "assigned" : "payment_confirmed",
-          pickup: draft.pickup,
-          pickupZh: draft.pickup,
-          dropoff: draft.dropoff,
-          dropoffZh: draft.dropoff,
-          when: draft.when || new Date(Date.now() + 36e5).toISOString().slice(0, 16),
-          vehicle: draft.vehicle as Booking["vehicle"],
-          passengers: draft.passengers,
-          luggage: draft.luggage,
-          extras: draft.extras,
-          promo: draft.promo || undefined,
-          flight: draft.service.startsWith("airport") ? draft.flight : undefined,
-          hours: draft.service === "hourly" ? draft.hours : undefined,
-          days: draft.service === "rental" ? draft.days : undefined,
+          id: `ZF-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+          service: d.service,
+          status: d.service === "instant" ? "assigned" : "payment_confirmed",
+          pickup: d.pickup,
+          pickupZh: d.pickup,
+          dropoff: d.dropoff,
+          dropoffZh: d.dropoff,
+          when: d.when || new Date(Date.now() + 36e5).toISOString().slice(0, 16),
+          vehicle: d.vehicle as Booking["vehicle"],
+          passengers: d.passengers,
+          luggage: d.luggage,
+          extras: d.extras,
+          promo: d.promo || undefined,
+          flight: d.service.startsWith("airport") ? d.flight : undefined,
+          hours: d.service === "hourly" ? d.hours : undefined,
+          days: d.service === "rental" ? d.days : undefined,
           driverId: driver?.id,
           passengerId: user?.id ?? "p1",
           otp: String(1000 + Math.floor(Math.random() * 9000)),
@@ -283,12 +284,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           currency: "TWD",
           breakdown: q.items,
           createdAt: new Date().toISOString(),
-          passengerName: draft.name,
-          passengerPhone: draft.phone,
+          passengerName: d.name,
+          passengerPhone: d.phone,
           commission: Math.round(q.total * COMMISSION),
           driverNet: Math.round(q.total * (1 - COMMISSION)),
           channel: ch,
-          payment: draft.payment,
+          payment: d.payment,
         };
         setBookings((xs) => [b, ...xs]);
         if (user) setUser({ ...user, lastDriverId: driver?.id ?? user.lastDriverId, points: user.points + 20 });

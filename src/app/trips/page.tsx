@@ -1,7 +1,7 @@
 "use client";
 
-import { TripsScreen } from "@/screens/passenger/rest";
+import { SignalTrips } from "@/screens/signal/trips";
 
 export default function Page() {
-  return <TripsScreen />;
+  return <SignalTrips />;
 }

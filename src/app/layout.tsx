@@ -11,7 +11,7 @@ const cjk = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "700"]
 
 export const metadata: Metadata = {
   title: "Zoufeng Signal — Live Mobility OS",
-  description: "Design prototype: realtime airport pickup, driver incidents, operations command, preferred drivers.",
+  description: "Live mobility OS: airport pickup, driver incidents, operations command, preferred drivers.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,8 +1,10 @@
-# Zoufeng Signal OS — Design checkpoint
+# Zoufeng Signal OS — Implementation
 
-**Status:** Not approved for production implementation.  
-**Mode:** Interactive design foundation + two connected scenarios.  
-**Realtime:** Simulated through a production-shaped event interface. Labeled on the map.
+**Status:** Design approved. First implementation increment.  
+**Realtime:** Simulated GPS/traffic through production-shaped events. Labeled on the map.  
+**Domain:** `src/lib/live/{capacity,rank,preferred,actions,scenario}` — booking, incident, and reassignment share the same rules.  
+**APIs:** `/api/quote`, `/api/dispatch/candidates`, `/api/preferred/validate`  
+**Store:** `placeBooking(override)` writes `ZF-*` bookings; live `assignedId` syncs onto the matching booking.
 
 ## Scenarios
 

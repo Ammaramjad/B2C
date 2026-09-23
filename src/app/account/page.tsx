@@ -1,7 +1,7 @@
 "use client";
 
-import { ProfileScreen } from "@/screens/passenger/rest";
+import { SignalAccount } from "@/screens/signal/trips";
 
 export default function Page() {
-  return <ProfileScreen />;
+  return <SignalAccount />;
 }

@@ -113,7 +113,7 @@ export function Driver360({ id }: { id: string }) {
 }
 
 function IncidentBody() {
-  const { live } = useLive();
+  const { live, ackIncident } = useLive();
   if (!live.incident) return <p className="text-sm text-[var(--mute)]">No open incident. Play ZF-82041 to inject INC-441.</p>;
   return (
     <div className="space-y-2 text-sm">
@@ -126,9 +126,14 @@ function IncidentBody() {
       <div>
         GPS {live.incident.loc.lat.toFixed(4)}, {live.incident.loc.lng.toFixed(4)} · {live.incident.clock}
       </div>
-      <Link href="/ops/replace" className="zf-btn wide">
-        Nearby replacements
-      </Link>
+      <div className="flex gap-2">
+        <button className="zf-btn ghost" onClick={ackIncident}>
+          Acknowledge
+        </button>
+        <Link href="/ops/replace" className="zf-btn">
+          Nearby replacements
+        </Link>
+      </div>
     </div>
   );
 }

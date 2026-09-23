@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
@@ -124,8 +124,9 @@ export function DriverIncident() {
   const { reportIncident } = useLive();
   const [cat, setCat] = useState("Unable to continue trip");
   const [note, setNote] = useState("Warning light · not safe to continue");
-  const [hold, setHold] = useState(false);
+  const [armed, setArmed] = useState(false);
   const router = useRouter();
+  const timer = useRef<number>(0);
   return (
     <div className="space-y-3">
       <h1 className="display text-4xl">Report incident</h1>
@@ -141,15 +142,23 @@ export function DriverIncident() {
       <button
         className="zf-btn wide"
         style={{ minHeight: 56 }}
-        onPointerDown={() => setHold(true)}
-        onPointerUp={() => {
-          if (hold) {
+        onPointerDown={() => {
+          setArmed(true);
+          timer.current = window.setTimeout(() => {
             reportIncident(cat, note);
             router.push("/ops/incident");
-          }
+          }, 1000);
+        }}
+        onPointerUp={() => {
+          window.clearTimeout(timer.current);
+          setArmed(false);
+        }}
+        onPointerLeave={() => {
+          window.clearTimeout(timer.current);
+          setArmed(false);
         }}
       >
-        Hold to send to Operations
+        {armed ? "Hold…" : "Hold to send to Operations"}
       </button>
     </div>
   );

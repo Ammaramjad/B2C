@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { mismatchCopy, vehicleFits } from "@/lib/live/capacity";
 import { useLive } from "@/lib/live/engine";
+import { quote } from "@/lib/pricing";
+import { useStore } from "@/lib/store";
 import { MapMount } from "@/components/signal/map-mount";
+import type { ExtraId, ServiceType } from "@/lib/types";
 
 const phases: { id: string; label: string }[] = [
   { id: "booked", label: "Booked" },
@@ -39,8 +44,15 @@ export function PassengerHome() {
         </div>
         <div className="mt-8 space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            {["Airport pickup", "Airport drop-off", "Private transfer", "Hourly", "Instant", "Self-drive"].map((s) => (
-              <Link key={s} href="/book" className="zf-panel px-3 py-3 text-sm font-semibold">
+            {[
+              ["/book?service=airport_pickup", "Airport pickup"],
+              ["/book?service=airport_drop", "Airport drop-off"],
+              ["/book?service=p2p", "Private transfer"],
+              ["/book?service=hourly", "Hourly"],
+              ["/book?service=instant", "Instant"],
+              ["/book?service=rental", "Self-drive"],
+            ].map(([href, s]) => (
+              <Link key={s} href={href} className="zf-panel px-3 py-3 text-sm font-semibold">
                 {s}
               </Link>
             ))}
@@ -59,15 +71,49 @@ export function PassengerHome() {
   );
 }
 
+const klassToId: Record<string, string> = { Sedan: "sedan", MPV: "mpv", Van: "van" };
+
 export function AirportBook() {
-  const { live } = useLive();
+  const { live, confirmAirport } = useLive();
+  const { setDraft, placeBooking } = useStore();
+  const router = useRouter();
   const [pax, setPax] = useState(5);
   const [bags, setBags] = useState(4);
   const [flight, setFlight] = useState("BR156");
   const [klass, setKlass] = useState("MPV");
   const [child, setChild] = useState(true);
-  const fare = 2280 + (klass === "Van" ? 200 : 0) + (child ? 200 : 0) + (pax > 6 ? 300 : 0);
-  const fit = klass === "Sedan" && (pax > 3 || bags > 3);
+  const extras: ExtraId[] = child ? ["child_seat", "meet"] : ["meet"];
+  const q = useMemo(
+    () =>
+      quote({
+        service: "airport_pickup" as ServiceType,
+        vehicle: klassToId[klass],
+        extras: child ? ["child_seat", "meet"] : ["meet"],
+        when: "2026-09-23T16:40",
+      }),
+    [klass, child],
+  );
+  const fare = q.total;
+  const fit = vehicleFits(klass, pax, bags);
+
+  function confirm() {
+    const payload = {
+      service: "airport_pickup" as const,
+      flight,
+      passengers: pax,
+      luggage: bags,
+      vehicle: klassToId[klass],
+      extras,
+      pickup: "TPE T2 Arrivals · Door 8",
+      dropoff: "Taipei 101 / Xinyi",
+      name: "Sarah Chen",
+    };
+    setDraft(payload);
+    const b = placeBooking(payload);
+    confirmAirport({ flight, pax, bags, vehicle: klass, fare, bookingId: b.id, name: "Sarah Chen" });
+    router.push(`/trips/${b.id}/success`);
+  }
+
   return (
     <div className="grid min-h-[calc(100vh-56px)] lg:grid-cols-[1fr_420px]">
       <div className="min-h-[360px]">
@@ -101,8 +147,8 @@ export function AirportBook() {
               className={`zf-panel p-3 text-left ${klass === k ? "outline outline-1 outline-[var(--signal)]" : ""}`}
             >
               <b>{k}</b>
-              {k === "Sedan" && fit ? (
-                <p className="mt-1 text-sm text-[var(--warn)]">Sedan supports 3 pax / 3 bags. For {pax}/{bags}, MPV is required.</p>
+              {!vehicleFits(k, pax, bags) ? (
+                <p className="mt-1 text-sm text-[var(--warn)]">{mismatchCopy(k, pax, bags)}</p>
               ) : (
                 <p className="mt-1 text-sm text-[var(--ink-2)]">Compatible with this party.</p>
               )}
@@ -121,9 +167,9 @@ export function AirportBook() {
             <div className="kicker">Quote updates live</div>
             <div className="zf-metric text-3xl">NT${fare.toLocaleString()}</div>
           </div>
-          <Link href="/live" className="zf-btn">
-            Confirm ZF-82041
-          </Link>
+          <button className="zf-btn" disabled={!fit} onClick={confirm}>
+            Confirm & pay NT${fare.toLocaleString()}
+          </button>
         </div>
       </div>
     </div>
@@ -131,7 +177,7 @@ export function AirportBook() {
 }
 
 export function PassengerLive() {
-  const { live } = useLive();
+  const { live, triggerSos } = useLive();
   const d = live.drivers.find((x) => x.id === live.assignedId);
   const idx = phases.findIndex((p) => p.id === live.phase);
   return (
@@ -143,7 +189,9 @@ export function PassengerLive() {
         <span className="zf-chip live">LIVE PICKUP</span>
         <div className="pointer-events-auto flex gap-2">
           <button className="zf-btn ghost">Share trip</button>
-          <button className="zf-btn">SOS</button>
+          <button className="zf-btn" onClick={triggerSos}>
+            SOS
+          </button>
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-16 z-[2000] md:bottom-4">
@@ -162,6 +210,7 @@ export function PassengerLive() {
               <div className="text-xs">{live.distanceKm ? `${live.distanceKm} km` : ""}</div>
             </div>
           </div>
+          {live.customerNotice ? <p className="mt-3 text-sm font-semibold text-[var(--signal)]">{live.customerNotice}</p> : null}
           {d ? (
             <div className="mt-3 flex justify-between text-sm">
               <div>
@@ -188,9 +237,27 @@ export function PassengerLive() {
 }
 
 export function PreferredDrivers() {
-  const { live, requestPreferred, validatePreferred, offerPreferred, acceptPreferred } = useLive();
+  const { live, requestPreferred, validatePreferred, rejectPreferred, offerPreferred, acceptPreferred } = useLive();
   const david = live.drivers[0];
   const st = live.preferred?.status;
+
+  async function companyValidate() {
+    const res = await fetch("/api/preferred/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        klass: david.klass,
+        pax: 5,
+        bags: 4,
+        premiumPct: live.preferred?.premiumPct ?? 18,
+        available: david.state === "available" || david.state === "to_pickup",
+      }),
+    });
+    const data = (await res.json()) as { ok: boolean };
+    if (data.ok) validatePreferred();
+    else rejectPreferred();
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="kicker">Company-mediated preference · M25</div>
@@ -225,7 +292,7 @@ export function PreferredDrivers() {
           ))}
         </ol>
         {st === "requested" ? (
-          <button className="zf-btn mt-3" onClick={validatePreferred}>
+          <button className="zf-btn mt-3" onClick={() => void companyValidate()}>
             Company validate
           </button>
         ) : null}
