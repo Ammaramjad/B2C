@@ -1,6 +1,6 @@
 "use client";
 
-import { DispatchBoard } from "@/screens/ops/screens";
+import { DispatchBoard } from "@/screens/signal/ops";
 
 export default function Page() {
   return <DispatchBoard />;

@@ -1,7 +1,5 @@
-"use client";
-
-import { DriverPickup } from "@/screens/driver/screens";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <DriverPickup />;
+  redirect("/driver/run");
 }

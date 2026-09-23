@@ -1,12 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
-import { CommandCenter } from "@/screens/ops/screens";
+import { CommandCenter } from "@/screens/signal/ops";
 
 export default function Page() {
-  return (
-    <Suspense>
-      <CommandCenter />
-    </Suspense>
-  );
+  return <CommandCenter />;
 }

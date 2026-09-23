@@ -1,18 +1,15 @@
-# Zoufeng Atlas — Mobility & Travel OS
+# Zoufeng Signal — Live Mobility OS
 
-Design-foundation prototype for Zoufeng International. Three operating systems share tokens but not chrome:
+Design-checkpoint prototype. **Not approved for production implementation.**
 
-- **Passenger** — travel-commerce marketplace and booking
-- **Driver** — task-oriented duty tool
-- **Operations / Admin** — command room and ledgers
+This is a realtime, map-first operating system preview:
 
-This is **not** production backend work. Payments, flights, dispatch, and FX are simulated.
+- Passenger live pickup
+- Driver incident + duty
+- Operations command / airport / replacement
+- Two connected scenarios (ZF-82041 disruption, preferred driver)
 
-## Review gate
-
-Open `/design` for tokens, component inventory, and the 47 representative screens.
-
-**Do not proceed to full development until the visual direction is approved.**
+GPS and traffic in this preview are **simulated** through the same event names production will use.
 
 ## Run
 
@@ -21,16 +18,13 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+- `/design` — inventory, motion, map approach
+- `/demo` — scenario director
+- `/` `/book` `/live` `/preferred`
+- `/driver` `/driver/incident`
+- `/ops` `/ops/incident` `/ops/replace`
 
-## Roles
-
-- Passenger: `/` and marketplace booking
-- Driver: `/driver`
-- Operations: `/ops`
-- Admin / finance / growth: `/admin/pricing`
-
-## Scripts
+Header: Play scenario / Next beat / Reset.
 
 ```bash
 npm run lint

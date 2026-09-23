@@ -1,7 +1,5 @@
-"use client";
-
-import { DriverOtp } from "@/screens/driver/screens";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <DriverOtp />;
+  redirect("/driver/run");
 }

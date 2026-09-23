@@ -1,12 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
-import { LiveTripScreen } from "@/screens/passenger/rest";
+import { PassengerLive } from "@/screens/signal/passenger";
 
 export default function Page() {
-  return (
-    <Suspense>
-      <LiveTripScreen />
-    </Suspense>
-  );
+  return <PassengerLive />;
 }
