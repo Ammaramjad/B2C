@@ -39,10 +39,10 @@ function LocaleBar() {
 
 const customer = [
   ["/", "Go", "出發"],
-  ["/book", "Book", "預訂"],
+  ["/cars", "Cars", "專車"],
   ["/live", "Live", "即時"],
   ["/trips", "Trips", "行程"],
-  ["/account", "You", "我的"],
+  ["/me", "My panel", "會員"],
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -99,11 +99,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </Link>
               </>
             )}
+            <Link href="/signup" className="hidden text-xs text-[var(--muted)] md:inline">
+              {loc(locale, "Sign up", "註冊")}
+            </Link>
             <Link
-              href={user ? (user.role === "driver" ? "/driver" : user.role === "ops" || user.role === "dispatcher" ? "/ops" : "/account") : "/login"}
+              href={user ? (user.role === "driver" ? "/driver" : user.role === "ops" || user.role === "dispatcher" ? "/ops" : "/me") : "/signup"}
               className="rounded-xl bg-[var(--primary)] px-3 py-2 text-sm font-semibold text-[var(--primary-ink)]"
             >
-              {user ? user.name.split(" ")[0] : loc(locale, "Enter", "進入")}
+              {user ? user.name.split(" ")[0] : loc(locale, "My panel", "會員")}
             </Link>
           </div>
         </div>

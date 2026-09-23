@@ -53,7 +53,10 @@ interface Store {
   setTheme: (t: Theme) => void;
   user: User | null;
   login: (email: string, role?: Role) => void;
+  signup: (p: { name: string; email: string; phone: string }) => void;
   logout: () => void;
+  saved: string[];
+  toggleSaved: (id: string) => void;
   draft: Draft;
   setDraft: (p: Partial<Draft>) => void;
   bookings: Booking[];
@@ -111,6 +114,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     { id: "m0", role: "agent", text: "走癲派車 24h FAQ · price / modify / cancel / complaint. 英文姓名不翻譯。" },
   ]);
   const [recent, setRecent] = useState<string[]>([]);
+  const [saved, setSaved] = useState<string[]>(["tpe-city-sedan"]);
   const [cancelMidPct, setCancelMidPct] = useState(0.5);
   const [hydrated, setHydrated] = useState(false);
 
@@ -126,6 +130,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(s.bookings) && s.bookings[0]?.id?.startsWith("ZD-")) setBookings(s.bookings);
         if (Array.isArray(s.switches)) setSwitches(s.switches);
         if (Array.isArray(s.recent)) setRecent(s.recent);
+        if (Array.isArray(s.saved)) setSaved(s.saved);
         if (typeof s.cancelMidPct === "number") setCancelMidPct(s.cancelMidPct);
       }
     } catch {
@@ -136,8 +141,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct }));
-  }, [locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct, hydrated]);
+    localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct }));
+  }, [locale, currency, theme, user, draft, bookings, switches, recent, saved, cancelMidPct, hydrated]);
 
   const lastDriverId = (passengerId?: string) => {
     const pid = passengerId ?? user?.id ?? "p1";
@@ -181,7 +186,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           lastDriverId: r === "passenger" ? "d1" : undefined,
         });
       },
+      signup: ({ name, email, phone }) => {
+        setUser({
+          id: `u-${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          email,
+          phone,
+          role: "passenger",
+          points: 100,
+          wallet: { TWD: 0, USD: 0 },
+          referralCode: `ZD-${name.slice(0, 3).toUpperCase()}88`,
+        });
+      },
       logout: () => setUser(null),
+      saved,
+      toggleSaved: (id) => setSaved((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [id, ...xs])),
       draft,
       setDraft: (p) => setDraftState((d) => ({ ...d, ...p })),
       bookings,
@@ -312,7 +331,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelMidPct,
       setCancelMidPct,
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, saved, cancelMidPct],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
