@@ -1,31 +1,24 @@
 import type { Metadata } from "next";
-import { Outfit, Syne } from "next/font/google";
+import { Inter, Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { Shell } from "@/components/shell";
+import { ThemeSync } from "@/components/theme-sync";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-});
-
-const syne = Syne({
-  variable: "--font-syne",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-});
+const inter = Inter({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
+const noto = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "600"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "ZOUFENG AETHER — International Mobility OS",
-  description:
-    "Futuristic B2C mobility and travel-dispatch platform: airport transfers, charter, taxi, AI itineraries, live safety.",
+  title: "ZOUDIAN — AI Mobility 2030",
+  description: "Design prototype: airport, P2P, hourly, taxi, rental, live trip, ops, admin.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${outfit.variable} ${syne.variable} h-full antialiased`}>
+    <html lang="en" data-theme="dark" className={`${inter.variable} ${noto.variable} h-full antialiased`}>
       <body className="min-h-full">
         <StoreProvider>
+          <ThemeSync />
           <Shell>{children}</Shell>
         </StoreProvider>
       </body>
