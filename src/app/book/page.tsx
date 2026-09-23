@@ -6,6 +6,7 @@ import { drivers, flights, vehicles } from "@/lib/data";
 import { convert, money, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { t } from "@/lib/i18n";
+import { LiveMap } from "@/components/live-map";
 import { Btn, Field, Panel } from "@/components/ui";
 import type { ServiceType } from "@/lib/types";
 
@@ -226,6 +227,15 @@ export default function BookPage() {
       </div>
 
       <aside className="space-y-4">
+        <LiveMap
+          locale={locale}
+          mode="trip"
+          height={280}
+          focusDriverId={last?.id}
+          pickup={draft.pickup}
+          dropoff={draft.dropoff}
+          eta={locale === "zh" ? "路線預覽" : "Route preview"}
+        />
         <Panel>
           <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">Transparent quote</div>
           <div className="display mt-2 text-3xl">{money(convert(q.total, currency), currency)}</div>

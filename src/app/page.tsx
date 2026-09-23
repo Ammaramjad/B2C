@@ -7,6 +7,8 @@ import { destinations, experiences, kpis } from "@/lib/data";
 import { t } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
+import { LiveMap } from "@/components/live-map";
+import { AreaChart } from "@/components/charts";
 import { Btn, Chip, Panel } from "@/components/ui";
 import type { ServiceType } from "@/lib/types";
 
@@ -31,64 +33,48 @@ export default function HomePage() {
 
   return (
     <div className="space-y-16">
-      <section className="relative grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr]">
-        <div>
-          <Chip>
-            <Sparkles className="h-3 w-3" /> 6+2 service architecture · Dispatch 2.0
-          </Chip>
-          <h1 className="display mt-5 text-5xl leading-[0.95] md:text-7xl">
-            {d.hero}
-          </h1>
-          <p className="mt-5 max-w-xl text-base text-white/65 md:text-lg">{d.heroSub}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Btn href="/book">{d.ctaBook}</Btn>
-            <Btn href="/planner" kind="ghost">{d.ctaPlan}</Btn>
-          </div>
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {kpis.slice(0, 4).map((k) => (
-              <div key={k.key} className="glass rounded-2xl p-3">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-white/40">
-                  {locale === "zh" ? k.labelZh : k.label}
-                </div>
-                <div className="display text-lg">
-                  {"twd" in k && k.twd != null ? money(convert(k.twd, currency), currency) : (k.value ?? "—")}
-                </div>
-              </div>
-            ))}
+      <section className="rise space-y-6">
+        <div className="relative overflow-hidden rounded-[36px]">
+          <LiveMap
+            locale={locale}
+            mode="fleet"
+            height={520}
+            pickup={locale === "zh" ? "桃園機場 T1" : "TPE T1 Arrivals"}
+            dropoff={locale === "zh" ? "信義／臺北 101" : "Xinyi / Taipei 101"}
+            eta={locale === "zh" ? "ETA 9 分 · 4.2 km" : "ETA 9 min · 4.2 km"}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-[#030014]/70 via-[#030014]/20 to-transparent p-6 md:p-10">
+            <Chip>
+              <Sparkles className="h-3 w-3" /> {d.live} · M15
+            </Chip>
+            <h1 className="display mt-4 max-w-3xl text-4xl leading-[0.95] text-white drop-shadow md:text-6xl">
+              {d.hero}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm text-white/75 md:text-base">{d.heroSub}</p>
+            <div className="pointer-events-auto mt-5 flex flex-wrap gap-3">
+              <Btn href="/book">{d.ctaBook}</Btn>
+              <Btn href="/planner" kind="ghost">{d.ctaPlan}</Btn>
+            </div>
           </div>
         </div>
-        <div className="relative scanline">
-          <div className="spin-slow absolute -left-8 top-8 h-40 w-40 rounded-full border border-cyan-200/20" />
-          <div className="spin-slow absolute -right-6 bottom-10 h-28 w-28 rounded-full border border-fuchsia-300/25" />
-          <Panel className="relative overflow-hidden neon">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-cyan-100/70">{d.live}</div>
-            <div className="display mt-2 text-3xl">Taipei mesh · TPE</div>
-            <div className="relative mt-6 h-56 overflow-hidden rounded-[22px] bg-[#05001c]">
-              <div className="absolute inset-0 opacity-60" style={{
-                background:
-                  "radial-gradient(circle at 30% 40%, rgba(78,242,255,0.35), transparent 28%), radial-gradient(circle at 70% 60%, rgba(255,79,216,0.28), transparent 26%)",
-              }} />
-              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 220">
-                <path d="M20 180 C 80 40, 160 200, 240 80 S 360 40, 390 120" fill="none" stroke="rgba(78,242,255,0.55)" strokeWidth="1.4" />
-                <path d="M30 40 C 120 90, 180 20, 260 110 S 340 180, 380 90" fill="none" stroke="rgba(176,140,255,0.5)" strokeWidth="1.2" />
-                <circle cx="240" cy="80" r="5" fill="#4ef2ff" />
-                <circle cx="120" cy="90" r="4" fill="#ff4fd8" />
-                <circle cx="320" cy="140" r="4" fill="#c8ff6a" />
-              </svg>
-              <div className="absolute left-4 top-4 rounded-full bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-lime-300">
-                18 vessels live
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {kpis.slice(0, 4).map((k) => (
+            <div key={k.key} className="glass rise rounded-2xl p-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-white/40">
+                {locale === "zh" ? k.labelZh : k.label}
               </div>
-              <div className="absolute bottom-4 right-4 rounded-2xl bg-black/45 px-3 py-2 text-xs text-white/80">
-                CI101 · T1 · 14:35 · free-wait armed
+              <div className="display text-lg">
+                {"twd" in k && k.twd != null ? money(convert(k.twd, currency), currency) : (k.value ?? "—")}
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-white/60">
-              <div>OTP boarding</div>
-              <div>Share-link</div>
-              <div>SOS L3</div>
-            </div>
-          </Panel>
+          ))}
         </div>
+        <Panel className="neon">
+          <AreaChart
+            label={locale === "zh" ? "7 日 GMV 脈衝" : "7-day GMV pulse"}
+            values={[12.1, 13.4, 12.8, 15.2, 16.1, 17.4, 18.4]}
+          />
+        </Panel>
       </section>
 
       <section>

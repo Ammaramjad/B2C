@@ -5,6 +5,8 @@ import { drivers, seedSettlements } from "@/lib/data";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
+import { AreaChart } from "@/components/charts";
+import { LiveMap } from "@/components/live-map";
 import { Btn, Panel, Stat } from "@/components/ui";
 
 export default function DriverPage() {
@@ -46,6 +48,23 @@ export default function DriverPage() {
           {online ? loc(locale, "Online · receiving", "上線 · 接單中") : loc(locale, "Offline", "離線")}
         </Btn>
       </div>
+
+      <LiveMap
+        locale={locale}
+        mode="nav"
+        height={380}
+        focusDriverId={me.id}
+        pickup={loc(locale, "Your live nav", "即時導航")}
+        dropoff={active[0] ? (zh ? active[0].dropoffZh : active[0].dropoff) : loc(locale, "Awaiting job", "等待任務")}
+        eta={online ? loc(locale, "Receiving · GPS locked", "接單中 · GPS 鎖定") : loc(locale, "Offline", "離線")}
+      />
+
+      <Panel className="neon">
+        <AreaChart
+          label={loc(locale, "7-day earnings pulse", "7 日收入曲線")}
+          values={[4.1, 5.2, 4.8, 6.1, 5.6, 6.8, 6.2]}
+        />
+      </Panel>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat k={loc(locale, "Today earned", "今日收入")} v={money(convert(me.earningsToday, currency), currency)} />

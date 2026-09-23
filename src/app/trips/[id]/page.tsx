@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { drivers } from "@/lib/data";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
+import { LiveMap } from "@/components/live-map";
 import { Btn, Panel } from "@/components/ui";
 
 export default function TripLivePage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,25 +36,19 @@ export default function TripLivePage({ params }: { params: Promise<{ id: string 
         <div className="display mt-2 text-3xl">
           {b.pickup} → {b.dropoff}
         </div>
-        <div className="relative mt-6 h-72 overflow-hidden rounded-[24px] bg-[#05001c]">
-          <svg className="h-full w-full" viewBox="0 0 400 280">
-            <defs>
-              <linearGradient id="g" x1="0" x2="1">
-                <stop stopColor="#4ef2ff" />
-                <stop offset="1" stopColor="#ff4fd8" />
-              </linearGradient>
-            </defs>
-            <path d="M30 230 C 90 80, 170 220, 250 90 S 360 60, 380 140" fill="none" stroke="url(#g)" strokeWidth="2" />
-            <circle cx="250" cy="90" r="7" fill="#4ef2ff" />
-            <circle cx="30" cy="230" r="5" fill="#ff4fd8" />
-          </svg>
-          <div className="ring left-[58%] top-[28%] h-10 w-10" />
-          <div className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-lime-300">
-            GPS mesh · 4.2 km · 9 min
-          </div>
+        <div className="relative mt-5">
+          <LiveMap
+            locale={locale}
+            mode="trip"
+            height={420}
+            focusDriverId={driver?.id}
+            pickup={locale === "zh" ? b.pickupZh : b.pickup}
+            dropoff={locale === "zh" ? b.dropoffZh : b.dropoff}
+            eta={locale === "zh" ? "即時 4.2 km · 9 分" : "Live 4.2 km · 9 min"}
+          />
           {sos && (
-            <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-rose-400/40 bg-rose-600/30 p-3 text-sm">
-              SOS armed. L3 incident cell paged. Last fix frozen. Nearby units flagged.
+            <div className="absolute inset-x-4 bottom-4 z-10 rounded-2xl border border-rose-400/40 bg-rose-600/40 p-3 text-sm backdrop-blur-md">
+              SOS · L3
             </div>
           )}
         </div>

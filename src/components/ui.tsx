@@ -72,7 +72,7 @@ export function Field({
 
 export function Stat({ k, v, d }: { k: string; v: string; d?: string }) {
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass rise rounded-2xl p-4">
       <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">{k}</div>
       <div className="display mt-1 text-2xl">{v}</div>
       {d && <div className="mt-1 text-xs text-lime-300/80">{d}</div>}

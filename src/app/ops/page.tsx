@@ -10,6 +10,8 @@ import {
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
+import { AreaChart, Bars } from "@/components/charts";
+import { LiveMap } from "@/components/live-map";
 import { Btn, Panel, Stat } from "@/components/ui";
 
 const tabs = [
@@ -99,8 +101,16 @@ export default function OpsPage() {
 
       {tab === "overview" && (
         <div className="space-y-4">
+          <LiveMap
+            locale={locale}
+            mode="fleet"
+            height={480}
+            pickup={loc(locale, "City dispatch", "全市調度")}
+            dropoff={loc(locale, `${live.length} live trips`, `${live.length} 筆進行中`)}
+            eta={loc(locale, "Round-robin + M18 weights", "輪詢＋M18 權重")}
+          />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {kpis.map((k) => (
+            {kpis.slice(0, 8).map((k) => (
               <Stat
                 key={k.key}
                 k={zh ? k.labelZh : k.label}
@@ -109,26 +119,28 @@ export default function OpsPage() {
               />
             ))}
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Stat k={loc(locale, "Bookings in mesh", "網格訂單")} v={String(bookings.length)} />
-            <Stat k={loc(locale, "Live trips", "進行中")} v={String(live.length)} />
-            <Stat k={loc(locale, "Ledger GMV", "帳本 GMV")} v={money(convert(gmv, currency), currency)} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel className="neon">
+              <AreaChart
+                label={loc(locale, "GMV pulse (NT$ M)", "GMV 脈衝（百萬）")}
+                values={[11.2, 12.6, 13.1, 14.8, 15.4, 16.9, 18.4]}
+              />
+              <div className="mt-2 text-sm text-white/50">
+                {loc(locale, "Ledger GMV", "帳本 GMV")} {money(convert(gmv, currency), currency)}
+              </div>
+            </Panel>
+            <Panel>
+              <div className="mb-3 text-[10px] uppercase tracking-[0.2em] text-white/40">
+                {loc(locale, "Rides by driver", "司機趟次")}
+              </div>
+              <Bars
+                items={drivers.map((d) => ({
+                  name: zh ? d.nameZh : d.name,
+                  value: bookings.filter((b) => b.driverId === d.id).length,
+                }))}
+              />
+            </Panel>
           </div>
-          <Panel>
-            <div className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-              {loc(locale, "Live assignments", "即時派遣")}
-            </div>
-            <div className="mt-3 space-y-2">
-              {live.slice(0, 6).map((b) => (
-                <div key={b.id} className="flex justify-between gap-3 text-sm text-white/70">
-                  <span>
-                    {b.id} · {b.status} · {zh ? b.pickupZh : b.pickup} → {zh ? b.dropoffZh : b.dropoff}
-                  </span>
-                  <span>{drivers.find((d) => d.id === b.driverId)?.[zh ? "nameZh" : "name"] ?? "—"}</span>
-                </div>
-              ))}
-            </div>
-          </Panel>
         </div>
       )}
 
