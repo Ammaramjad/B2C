@@ -57,7 +57,7 @@ export function LiveMap({
             <feGaussianBlur stdDeviation="1.2" />
           </filter>
         </defs>
-        {ROADS.map((d, i) => (
+        {ROADS.map((d) => (
           <path key={d} d={d} fill="none" stroke="rgba(120,160,220,0.18)" strokeWidth="10" />
         ))}
         {ROADS.map((d, i) => (

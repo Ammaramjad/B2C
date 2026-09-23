@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { extras as extraCat } from "./catalog";
 import { drivers, passengers, seedBookings, seedSettlements, seedSwitches, seedTickets } from "./data";
 import { loc } from "./i18n";
@@ -24,6 +24,31 @@ import type {
 
 const KEY = "zoudian-v2030-web";
 export type Theme = "dark" | "light";
+
+function subscribePersist(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function getPersistSnapshot() {
+  try {
+    return localStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+function getPersistServerSnapshot() {
+  return null;
+}
+
+function getIsClientSnapshot() {
+  return true;
+}
+
+function getIsClientServerSnapshot() {
+  return false;
+}
 
 interface Draft {
   service: ServiceType;
@@ -98,55 +123,81 @@ const defaultDraft: Draft = {
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("en");
-  const [currency, setCurrency] = useState<Currency>("TWD");
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [user, setUser] = useState<User | null>(null);
-  const [draft, setDraftState] = useState<Draft>(defaultDraft);
-  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [switches, setSwitches] = useState<SwitchRequest[]>(seedSwitches);
+  const isClient = useSyncExternalStore(subscribePersist, getIsClientSnapshot, getIsClientServerSnapshot);
+  const persistRaw = useSyncExternalStore(subscribePersist, getPersistSnapshot, getPersistServerSnapshot);
+  const persisted = useMemo(() => {
+    let parsed: Record<string, unknown> | null = null;
+    if (persistRaw) {
+      try {
+        parsed = JSON.parse(persistRaw) as Record<string, unknown>;
+      } catch {
+        parsed = null;
+      }
+    }
+    return {
+      locale: (parsed?.locale === "zh" ? "zh" : "en") as Locale,
+      currency: (parsed?.currency === "USD" ? "USD" : "TWD") as Currency,
+      theme: (parsed?.theme === "light" || parsed?.theme === "dark" ? parsed.theme : "dark") as Theme,
+      user: (parsed?.user as User | null | undefined) ?? null,
+      draft: { ...defaultDraft, ...(parsed?.draft as Partial<Draft> | undefined) } as Draft,
+      bookings:
+        Array.isArray(parsed?.bookings) && (parsed.bookings as Booking[])[0]?.id?.startsWith("ZD-")
+          ? (parsed.bookings as Booking[])
+          : seedBookings,
+      switches: Array.isArray(parsed?.switches) ? (parsed.switches as SwitchRequest[]) : seedSwitches,
+      recent: Array.isArray(parsed?.recent) ? (parsed.recent as string[]) : [],
+      cancelMidPct: typeof parsed?.cancelMidPct === "number" ? parsed.cancelMidPct : 0.5,
+    };
+  }, [persistRaw]);
+
+  const persistedLocale = persisted.locale;
+  const persistedCurrency = persisted.currency;
+  const persistedTheme = persisted.theme;
+  const persistedUser = persisted.user;
+  const persistedDraft = persisted.draft;
+  const persistedBookings = persisted.bookings;
+  const persistedSwitches = persisted.switches;
+  const persistedRecent = persisted.recent;
+  const persistedCancelMidPct = persisted.cancelMidPct;
+
+  const [localeState, setLocale] = useState<Locale | undefined>(undefined);
+  const [currencyState, setCurrency] = useState<Currency | undefined>(undefined);
+  const [themeState, setTheme] = useState<Theme | undefined>(undefined);
+  const [userState, setUser] = useState<User | null | undefined>(undefined);
+  const [draftState, setDraftState] = useState<Draft | undefined>(undefined);
+  const [bookingsState, setBookingsState] = useState<Booking[] | undefined>(undefined);
+  const [switchesState, setSwitchesState] = useState<SwitchRequest[] | undefined>(undefined);
   const [tickets] = useState<Ticket[]>(seedTickets);
   const [settlements] = useState<Settlement[]>(seedSettlements);
   const [messages, setMessages] = useState<Message[]>([
     { id: "m0", role: "agent", text: "走癲派車 24h FAQ · price / modify / cancel / complaint. 英文姓名不翻譯。" },
   ]);
-  const [recent, setRecent] = useState<string[]>([]);
-  const [cancelMidPct, setCancelMidPct] = useState(0.5);
-  const [hydrated, setHydrated] = useState(false);
+  const [recentState, setRecentState] = useState<string[] | undefined>(undefined);
+  const [cancelMidPctState, setCancelMidPct] = useState<number | undefined>(undefined);
+
+  const locale = localeState ?? persistedLocale;
+  const currency = currencyState ?? persistedCurrency;
+  const theme = themeState ?? persistedTheme;
+  const user = userState !== undefined ? userState : persistedUser;
+  const draft = draftState ?? persistedDraft;
+  const bookings = bookingsState ?? persistedBookings;
+  const switches = switchesState ?? persistedSwitches;
+  const recent = recentState ?? persistedRecent;
+  const cancelMidPct = cancelMidPctState ?? persistedCancelMidPct;
+
+  const setBookings = useCallback(
+    (updater: (xs: Booking[]) => Booking[]) => setBookingsState((xs) => updater(xs ?? persistedBookings)),
+    [persistedBookings],
+  );
+  const setSwitches = useCallback(
+    (updater: (xs: SwitchRequest[]) => SwitchRequest[]) => setSwitchesState((xs) => updater(xs ?? persistedSwitches)),
+    [persistedSwitches],
+  );
 
   useEffect(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem(KEY) || "null");
-      if (s) {
-        setLocale(s.locale === "zh" ? "zh" : "en");
-        setCurrency(s.currency === "USD" ? "USD" : "TWD");
-        if (s.theme === "light" || s.theme === "dark") setTheme(s.theme);
-        setUser(s.user ?? null);
-        setDraftState({ ...defaultDraft, ...s.draft });
-        if (Array.isArray(s.bookings) && s.bookings[0]?.id?.startsWith("ZD-")) setBookings(s.bookings);
-        if (Array.isArray(s.switches)) setSwitches(s.switches);
-        if (Array.isArray(s.recent)) setRecent(s.recent);
-        if (typeof s.cancelMidPct === "number") setCancelMidPct(s.cancelMidPct);
-      }
-    } catch {
-      /* ignore */
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
+    if (!isClient) return;
     localStorage.setItem(KEY, JSON.stringify({ locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct }));
-  }, [locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct, hydrated]);
-
-  const lastDriverId = (passengerId?: string) => {
-    const pid = passengerId ?? user?.id ?? "p1";
-    return (
-      (user?.id === pid ? user.lastDriverId : undefined) ??
-      passengers.find((p) => p.id === pid)?.lastDriverId ??
-      bookings.find((b) => b.passengerId === pid && b.driverId)?.driverId
-    );
-  };
+  }, [isClient, locale, currency, theme, user, draft, bookings, switches, recent, cancelMidPct]);
 
   const value = useMemo<Store>(
     () => ({
@@ -183,7 +234,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       logout: () => setUser(null),
       draft,
-      setDraft: (p) => setDraftState((d) => ({ ...d, ...p })),
+      setDraft: (p) => setDraftState((d) => ({ ...(d ?? persistedDraft), ...p })),
       bookings,
       placeBooking: () => {
         const routeCount = bookings.filter((b) => b.pickup === draft.pickup && b.dropoff === draft.dropoff).length;
@@ -307,12 +358,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ]);
       },
       recent,
-      pushRecent: (q) => setRecent((xs) => [q, ...xs.filter((x) => x !== q)].slice(0, 6)),
-      lastDriverId,
+      pushRecent: (q) => setRecentState((xs) => [q, ...(xs ?? persistedRecent).filter((x) => x !== q)].slice(0, 6)),
+      lastDriverId: (passengerId?: string) => {
+        const pid = passengerId ?? user?.id ?? "p1";
+        return (
+          (user?.id === pid ? user.lastDriverId : undefined) ??
+          passengers.find((p) => p.id === pid)?.lastDriverId ??
+          bookings.find((b) => b.passengerId === pid && b.driverId)?.driverId
+        );
+      },
       cancelMidPct,
       setCancelMidPct,
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, persistedDraft, persistedRecent, setBookings, setSwitches],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

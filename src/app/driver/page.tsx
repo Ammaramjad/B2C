@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { drivers } from "@/lib/data";
 import { loc } from "@/lib/i18n";
 import { convert, money } from "@/lib/pricing";
@@ -16,16 +16,14 @@ export default function DriverPage() {
   const mine = bookings.filter((b) => b.driverId === me.id);
   const incoming = bookings.find((b) => b.status === "new" || (!b.driverId && b.status === "payment_confirmed"));
   const active = mine.find((b) => !["completed", "cancelled"].includes(b.status));
-  const primary = useMemo(() => {
-    if (!active) return null;
-    const map: Record<string, { next?: typeof active.status; label: string }> = {
-      assigned: { next: "accepted", label: loc(locale, "Accept", "接單") },
-      accepted: { next: "arriving", label: loc(locale, "Start to pickup", "前往接駕") },
-      arriving: { next: "onboard", label: loc(locale, "Arrived", "已到達") },
-      onboard: { next: "completed", label: loc(locale, "Complete", "完成") },
-    };
-    return map[active.status];
-  }, [active, locale]);
+  const primaryStatus = active?.status;
+  const primaryActions: Record<string, { next: "accepted" | "arriving" | "onboard" | "completed"; label: string }> = {
+    assigned: { next: "accepted", label: loc(locale, "Accept", "接單") },
+    accepted: { next: "arriving", label: loc(locale, "Start to pickup", "前往接駕") },
+    arriving: { next: "onboard", label: loc(locale, "Arrived", "已到達") },
+    onboard: { next: "completed", label: loc(locale, "Complete", "完成") },
+  };
+  const primary = primaryStatus ? primaryActions[primaryStatus] : null;
 
   if (!user || user.role !== "driver") {
     return (
