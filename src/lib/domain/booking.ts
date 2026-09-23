@@ -31,39 +31,44 @@ export function deriveCounters(live: LiveSnapshot, bookings: Booking[]) {
   };
 }
 
+function synthesizeTape(live: LiveSnapshot): Booking {
+  return {
+    id: TAPE_BOOKING_ID,
+    service: "airport_pickup",
+    status: phaseToStatus(live.phase),
+    pickup: live.pickup,
+    pickupZh: live.pickup,
+    dropoff: live.dropoff,
+    dropoffZh: live.dropoff,
+    when: `2026-09-23T${live.clock}`,
+    vehicle: "mpv",
+    passengers: 5,
+    luggage: 4,
+    extras: ["meet"],
+    flight: live.flight,
+    driverId: live.assignedId ?? undefined,
+    passengerId: "p-sarah",
+    otp: live.otp,
+    price: live.fare,
+    currency: "TWD",
+    breakdown: [{ label: "Quoted fare", labelZh: "報價", amount: live.fare }],
+    createdAt: "2026-09-23T12:00:00+08:00",
+    passengerName: live.passenger,
+    passengerPhone: "",
+    commission: Math.round(live.fare * 0.2),
+    driverNet: Math.round(live.fare * 0.8),
+    channel: "web",
+    payment: "card",
+  };
+}
+
+/** Resolve a booking by exact id. ZF-82041 is only synthesized when it is the live tape booking. */
 export function resolveBooking(id: string | undefined, bookings: Booking[], live: LiveSnapshot): Booking | null {
   if (!id) return null;
   const hit = bookings.find((b) => b.id === id);
   if (hit) return hit;
-  if (live.bookingId === id) {
-    return {
-      id,
-      service: "airport_pickup",
-      status: phaseToStatus(live.phase),
-      pickup: live.pickup,
-      pickupZh: live.pickup,
-      dropoff: live.dropoff,
-      dropoffZh: live.dropoff,
-      when: `2026-09-23T${live.clock}`,
-      vehicle: "mpv",
-      passengers: 5,
-      luggage: 4,
-      extras: ["meet"],
-      flight: live.flight,
-      driverId: live.assignedId ?? undefined,
-      passengerId: "p-sarah",
-      otp: live.otp,
-      price: live.fare,
-      currency: "TWD",
-      breakdown: [{ label: "Quoted fare", labelZh: "報價", amount: live.fare }],
-      createdAt: new Date().toISOString(),
-      passengerName: live.passenger,
-      passengerPhone: "",
-      commission: Math.round(live.fare * 0.2),
-      driverNet: Math.round(live.fare * 0.8),
-      channel: "web",
-      payment: "card",
-    };
+  if (id === TAPE_BOOKING_ID && live.bookingId === TAPE_BOOKING_ID) {
+    return synthesizeTape(live);
   }
   return null;
 }

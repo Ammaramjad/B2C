@@ -1,5 +1,10 @@
 /** Persistence boundary. Demo adapter holds operational state. Production adapter is unconfigured. */
 
+import type { PaymentRecord, WalletTx } from "./payments.ts";
+import type { NotifyDelivery } from "./notify.ts";
+import type { PreferredWorkflow } from "./preferred-flow.ts";
+import type { OfferState } from "./offer.ts";
+
 export type PersistMode = "demo" | "production";
 
 export type DispatchOffer = {
@@ -7,15 +12,17 @@ export type DispatchOffer = {
   bookingId: string;
   driverId: string;
   kind: "assignment" | "replacement" | "preferred";
-  status: "open" | "accepted" | "rejected" | "expired";
+  status: OfferState;
   createdAt: number;
   expiresAt: number;
+  viewedAt?: number;
 };
 
 export type ShareRecord = {
   token: string;
   bookingId: string;
   createdAt: number;
+  expiresAt: number;
   createdBy: "passenger";
 };
 
@@ -35,19 +42,7 @@ export type PunctualityRecord = {
   lateMin: number;
 };
 
-export type PaymentTx = {
-  id: string;
-  bookingId: string;
-  customer: string;
-  method: string;
-  provider: "simulation" | "production";
-  authorization: "authorized" | "none";
-  capture: "captured" | "pending" | "voided";
-  amount: number;
-  currency: string;
-  status: "ok" | "failed" | "refunded";
-  at: string;
-};
+export type PaymentTx = PaymentRecord;
 
 export type RefundTx = {
   id: string;
@@ -61,15 +56,7 @@ export type RefundTx = {
   at: string;
 };
 
-export type WalletEntry = {
-  id: string;
-  passengerId: string;
-  type: "credit" | "debit" | "refund" | "reward" | "expiry" | "adjustment";
-  amount: number;
-  ref: string;
-  at: string;
-  expires?: string;
-};
+export type WalletEntry = WalletTx;
 
 export type NotificationLog = {
   id: string;
@@ -78,8 +65,9 @@ export type NotificationLog = {
   channel: "in_app" | "push" | "sms" | "email";
   language: "en" | "zh";
   template: string;
-  status: "sent" | "delivered" | "failed" | "retry";
+  status: NotifyDelivery;
   at: string;
+  providerConfirmed: boolean;
 };
 
 export type AuditRow = {
@@ -105,7 +93,7 @@ export type TranslationRow = {
   source: string;
   en: string;
   zh: string;
-  status: "MISSING" | "DRAFT" | "NEEDS REVIEW" | "APPROVED";
+  status: "missing" | "draft" | "reviewed" | "approved" | "MISSING" | "DRAFT" | "NEEDS REVIEW" | "APPROVED";
   reviewer?: string;
   updated: string;
 };
@@ -120,7 +108,25 @@ export type PreferredCase = {
   service: string;
   vehicle: string;
   premiumPct: number;
-  status: "requested" | "validating" | "offered" | "confirmed" | "declined" | "unavailable";
+  status: PreferredWorkflow;
+};
+
+export type IncidentRecord = {
+  id: string;
+  bookingId: string;
+  driverId: string;
+  category: string;
+  note: string;
+  at: number;
+};
+
+export type CancellationRecord = {
+  id: string;
+  bookingId: string;
+  hoursBefore: number;
+  fee: number;
+  refund: number;
+  at: string;
 };
 
 export type DomainState = {
@@ -137,6 +143,8 @@ export type DomainState = {
   notes: CrmNote[];
   translations: TranslationRow[];
   preferredCases: PreferredCase[];
+  incidents: IncidentRecord[];
+  cancellations: CancellationRecord[];
 };
 
 export function emptyDomain(): DomainState {
@@ -157,18 +165,42 @@ export function emptyDomain(): DomainState {
     audit: [],
     notes: [],
     translations: [
-      { key: "home.headline", namespace: "passenger", source: "product", en: "The car is already on the network.", zh: "車已在網路上。", status: "APPROVED", reviewer: "Nova", updated: "2026-09-20" },
-      { key: "live.share", namespace: "passenger", source: "product", en: "Share trip", zh: "分享行程", status: "NEEDS REVIEW", updated: "2026-09-22" },
-      { key: "ops.critical", namespace: "ops", source: "product", en: "CRITICAL", zh: "緊急", status: "DRAFT", updated: "2026-09-21" },
-      { key: "dest.tpe.faq1", namespace: "seo", source: "editorial", en: "", zh: "", status: "MISSING", updated: "2026-09-23" },
+      { key: "home.headline", namespace: "passenger", source: "product", en: "The car is already on the network.", zh: "車已在網路上。", status: "approved", reviewer: "Nova", updated: "2026-09-20" },
+      { key: "live.share", namespace: "passenger", source: "product", en: "Share trip", zh: "分享行程", status: "reviewed", updated: "2026-09-22" },
+      { key: "ops.critical", namespace: "ops", source: "product", en: "CRITICAL", zh: "緊急", status: "draft", updated: "2026-09-21" },
+      { key: "dest.tpe.faq1", namespace: "seo", source: "editorial", en: "", zh: "", status: "missing", updated: "2026-09-23" },
     ],
     preferredCases: [],
+    incidents: [],
+    cancellations: [],
   };
 }
 
-export const productionPersist = {
-  id: "production" as const,
+export type PersistAdapter = {
+  id: PersistMode;
+  load(): Promise<DomainState | null>;
+  save(state: DomainState): Promise<void>;
+};
+
+export const demoPersist: PersistAdapter = {
+  id: "demo",
+  async load() {
+    return null;
+  },
+  async save() {
+    /* browser store writes DomainState through StoreProvider */
+  },
+};
+
+export const productionPersist: PersistAdapter = {
+  id: "production",
+  async load() {
+    throw new Error("Production persistence is not configured");
+  },
+  async save() {
+    throw new Error("Production persistence is not configured");
+  },
   async write() {
     throw new Error("Production persistence is not configured");
   },
-};
+} as PersistAdapter & { write(): Promise<never> };

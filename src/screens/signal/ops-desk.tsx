@@ -7,6 +7,7 @@ import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
 import { EventStream } from "./ops";
 import { useStore } from "@/lib/store";
+import { fleetRoster } from "@/lib/domain/fleet";
 
 export function BookingQueue() {
   const { bookings } = useStore();
@@ -260,34 +261,37 @@ export function SafetyDeskLive() {
 }
 
 export function FleetCompaniesLive() {
-  const groups = useMemo(() => {
-    const g: Record<string, number> = { A: 0, B: 0, C: 0 };
-    drivers.forEach((d) => {
-      g[d.fleet] += 1;
-    });
-    return g;
-  }, []);
+  const roster = useMemo(() => fleetRoster(), []);
   return (
     <div className="p-4">
       <h1 className="display text-3xl">Fleet companies</h1>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Fleet</th>
-            <th>Drivers in catalog</th>
-            <th>Priority</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(groups).map(([k, n]) => (
-            <tr key={k}>
-              <td>{k}</td>
-              <td>{n}</td>
-              <td>{k === "A" ? "First" : k === "B" ? "Second" : "Fill"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="mt-2 text-sm">Catalog association only. Server-side fleet writes are unavailable — productionFleetWrite throws.</p>
+      {roster.map((c) => (
+        <div key={c.id} className="zf-panel mt-4 p-3">
+          <div className="kicker">{c.name} · {c.priority}</div>
+          <div className="text-sm">Classes {c.classes.join(", ") || "—"}</div>
+          <table className="zf-table mt-2">
+            <thead>
+              <tr>
+                <th>Driver</th>
+                <th>Class</th>
+                <th>Seats/bags</th>
+                <th>Work</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.drivers.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.name}</td>
+                  <td>{d.vehicleClass}</td>
+                  <td>{d.seats}/{d.bags}</td>
+                  <td>{d.work}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
@@ -362,7 +366,8 @@ export function VehicleDesk() {
 }
 
 export function PreferredQueue() {
-  const { live, validatePreferred, rejectPreferred, offerPreferred } = useLive();
+  const { live, validatePreferred, rejectPreferred, cancelPreferred, offerPreferred } = useLive();
+  const [filter, setFilter] = useState<string>("all");
   const david = live.drivers[0];
   const st = live.preferred?.status;
   async function companyValidate() {
@@ -398,23 +403,37 @@ export function PreferredQueue() {
         ) : (
           <p className="text-sm text-[var(--mute)]">No open preferred request.</p>
         )}
-        {st === "requested" ? (
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          {["all", "pending", "under_review", "validated", "company_offered", "driver_offered", "confirmed", "rejected", "cancelled"].map((s) => (
+            <button key={s} type="button" className={filter === s ? "text-[var(--signal)]" : "text-[var(--mute)]"} onClick={() => setFilter(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+        {filter !== "all" && st !== filter ? <p className="text-sm text-[var(--mute)]">No cases in {filter}.</p> : null}
+        {st === "pending" || st === "requested" ? (
           <button type="button" className="zf-btn wide" data-testid="preferred-validate" onClick={() => void companyValidate()}>
             Approve + validate
           </button>
         ) : null}
-        {st === "validating" ? (
+        {st === "under_review" || st === "validating" || st === "validated" ? (
           <button type="button" className="zf-btn wide" data-testid="preferred-offer" onClick={offerPreferred}>
             Send company offer
           </button>
         ) : null}
-        {st === "requested" || st === "validating" ? (
-          <button type="button" className="zf-btn ghost wide" onClick={rejectPreferred}>
-            Decline / alternative
-          </button>
+        {st === "pending" || st === "under_review" || st === "validated" || st === "requested" || st === "validating" ? (
+          <>
+            <button type="button" className="zf-btn ghost wide" data-testid="preferred-reject" onClick={rejectPreferred}>
+              Decline / alternative
+            </button>
+            <button type="button" className="zf-btn ghost wide" data-testid="preferred-cancel" onClick={cancelPreferred}>
+              Cancel request
+            </button>
+          </>
         ) : null}
-        {st === "offered" ? <p className="text-sm">Official offer is on the driver offer screen.</p> : null}
+        {st === "company_offered" || st === "driver_offered" || st === "offered" ? <p className="text-sm">Official offer is on the driver offer screen.</p> : null}
         {st === "confirmed" ? <p className="font-semibold">{live.customerNotice}</p> : null}
+        {st === "rejected" || st === "cancelled" ? <p className="text-sm">{live.customerNotice}</p> : null}
       </aside>
     </div>
   );

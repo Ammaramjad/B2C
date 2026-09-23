@@ -3,8 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { extras as extraCat } from "./catalog";
 import { drivers, passengers, seedBookings, seedSettlements, seedSwitches, seedTickets } from "./data";
-import { emptyDomain, type CrmNote, type DomainState, type ShareRecord } from "./domain/persist";
+import { emptyDomain, type CrmNote, type DomainState, type NotificationLog, type ShareRecord, type TranslationRow } from "./domain/persist";
 import { mintShareToken } from "./domain/share";
+import { paymentFromBooking, type PaymentRecord, type WalletTx } from "./domain/payments";
+import { templateFor } from "./domain/notify";
 import { loc } from "./i18n";
 import { cancelFee, COMMISSION, quote } from "./pricing";
 import type {
@@ -107,6 +109,11 @@ interface Store {
   recordReject: (driverId: string, bookingId: string) => void;
   createShare: (bookingId: string) => ShareRecord;
   addNote: (passengerId: string, body: string) => CrmNote;
+  recordPayment: (tx: PaymentRecord) => void;
+  setPaymentStatus: (id: string, status: PaymentRecord["status"]) => void;
+  addWalletTx: (tx: WalletTx) => void;
+  queueNotify: (event: string, audience?: string) => NotificationLog;
+  setTranslationStatus: (key: string, status: TranslationRow["status"]) => void;
 }
 
 const defaultDraft: Draft = {
@@ -158,11 +165,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       switches: Array.isArray(parsed?.switches) ? (parsed.switches as SwitchRequest[]) : seedSwitches,
       recent: Array.isArray(parsed?.recent) ? (parsed.recent as string[]) : [],
       cancelMidPct: typeof parsed?.cancelMidPct === "number" ? parsed.cancelMidPct : 0.5,
-      domain: {
-        ...emptyDomain(),
-        ...((parsed?.domain as DomainState | undefined) ?? {}),
-        mode: "demo" as const,
-      },
+      domain: (() => {
+        const incoming = ((parsed?.domain as Partial<DomainState> | undefined) ?? {}) as Partial<DomainState>;
+        const base = emptyDomain();
+        return {
+          ...base,
+          ...incoming,
+          mode: "demo" as const,
+          cancellations: incoming.cancellations ?? base.cancellations,
+          incidents: incoming.incidents ?? base.incidents,
+          payments: incoming.payments ?? base.payments,
+          wallet: incoming.wallet ?? base.wallet,
+          notifications: incoming.notifications ?? base.notifications,
+        };
+      })(),
     };
   }, [persistRaw]);
 
@@ -312,6 +328,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         };
         setBookings((xs) => [b, ...xs]);
         if (user) setUser({ ...user, lastDriverId: driver?.id ?? user.lastDriverId, points: user.points + 20 });
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const pay = paymentFromBooking({
+            bookingId: b.id,
+            customer: b.passengerName,
+            method: b.payment,
+            amount: q.total,
+            status: "captured",
+            source: "demo",
+          });
+          const wlt: WalletTx = {
+            id: `wlt_${b.id}`,
+            passengerId: b.passengerId,
+            bookingId: b.id,
+            type: "debit",
+            amount: q.total,
+            currency: "TWD",
+            timestamp: b.createdAt,
+            status: "posted",
+            source: "demo",
+            reference: b.id,
+          };
+          const note = templateFor("booking.confirmed");
+          const n: NotificationLog = {
+            id: `N-${Date.now()}`,
+            event: "booking.confirmed",
+            audience: "passenger",
+            channel: "in_app",
+            language: locale,
+            template: note?.en ?? "Booking confirmed",
+            status: "generated",
+            at: new Date().toISOString(),
+            providerConfirmed: false,
+          };
+          return { ...cur, payments: [pay, ...cur.payments], wallet: [wlt, ...cur.wallet], notifications: [n, ...cur.notifications] };
+        });
         return b;
       },
       advance: (id, status) =>
@@ -332,15 +384,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             return { ...b, status: next };
           }),
         ),
-      cancel: (id) =>
-        setBookings((xs) =>
-          xs.map((b) => {
-            if (b.id !== id || b.status === "completed") return b;
-            const hours = Math.max(0, (new Date(b.when).getTime() - Date.now()) / 36e5);
-            const fee = cancelFee(hours, b.price, cancelMidPct);
-            return { ...b, status: "cancelled", price: fee };
-          }),
-        ),
+      cancel: (id) => {
+        const current = bookings.find((b) => b.id === id);
+        if (!current || current.status === "completed") return;
+        const hours = Math.max(0, (new Date(current.when).getTime() - Date.now()) / 36e5);
+        const fee = cancelFee(hours, current.price, cancelMidPct);
+        const refund = Math.max(0, current.price - fee);
+        setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, status: "cancelled" as const, price: fee } : b)));
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return {
+            ...cur,
+            cancellations: [{ id: `CX-${Date.now()}`, bookingId: id, hoursBefore: hours, fee, refund, at: new Date().toISOString() }, ...cur.cancellations],
+            payments: cur.payments.map((p: PaymentRecord) => (p.bookingId === id ? { ...p, status: refund === current.price ? "voided" : refund ? "refunded" : "captured" } : p)),
+            wallet:
+              refund > 0
+                ? [
+                    {
+                      id: `wlt_rf_${id}`,
+                      passengerId: current.passengerId,
+                      bookingId: id,
+                      type: "refund" as const,
+                      amount: refund,
+                      currency: "TWD",
+                      timestamp: new Date().toISOString(),
+                      status: "posted" as const,
+                      source: "demo" as const,
+                      reference: id,
+                    },
+                    ...cur.wallet,
+                  ]
+                : cur.wallet,
+            notifications: [
+              {
+                id: `N-${Date.now()}`,
+                event: "booking.cancelled",
+                audience: "passenger",
+                channel: "in_app",
+                language: locale,
+                template: `Cancelled · fee NT$${fee}`,
+                status: "generated",
+                at: new Date().toISOString(),
+                providerConfirmed: false,
+              },
+              ...cur.notifications,
+            ],
+          };
+        });
+      },
       assignDriver: (id, driverId) =>
         setBookings((xs) => xs.map((b) => (b.id === id ? { ...b, driverId, status: "assigned" } : b))),
       grab: (id, driverId) =>
@@ -417,6 +508,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setDomainState((d) => ({ ...(d ?? persistedDomain), notes: [note, ...(d ?? persistedDomain).notes] }));
         return note;
       },
+      recordPayment: (tx) => setDomainState((d) => ({ ...(d ?? persistedDomain), payments: [tx, ...(d ?? persistedDomain).payments] })),
+      setPaymentStatus: (id, status) =>
+        setDomainState((d) => ({
+          ...(d ?? persistedDomain),
+          payments: (d ?? persistedDomain).payments.map((p: PaymentRecord) => (p.id === id ? { ...p, status } : p)),
+        })),
+      addWalletTx: (tx) => setDomainState((d) => ({ ...(d ?? persistedDomain), wallet: [tx, ...(d ?? persistedDomain).wallet] })),
+      queueNotify: (event, audience) => {
+        const t = templateFor(event);
+        const row: NotificationLog = {
+          id: `N-${Date.now()}`,
+          event,
+          audience: audience ?? t?.audience ?? "ops",
+          channel: t?.channel ?? "in_app",
+          language: locale,
+          template: t?.en ?? event,
+          status: "generated",
+          at: new Date().toISOString(),
+          providerConfirmed: false,
+        };
+        setDomainState((d) => ({ ...(d ?? persistedDomain), notifications: [row, ...(d ?? persistedDomain).notifications] }));
+        return row;
+      },
+      setTranslationStatus: (key, status) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return {
+            ...cur,
+            translations: cur.translations.map((t) => (t.key === key && t.status !== "approved" && t.status !== "APPROVED" ? { ...t, status, updated: new Date().toISOString().slice(0, 10) } : t)),
+          };
+        }),
     }),
     [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
   );

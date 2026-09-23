@@ -5,7 +5,7 @@ import type {
   ServiceType,
   Taxi,
   Vehicle,
-} from "./types";
+} from "./types.ts";
 
 export const services: { id: ServiceType; en: string; zh: string; formula: string }[] = [
   { id: "airport_pickup", en: "Airport pickup", zh: "機場接機", formula: "base + extras + night" },

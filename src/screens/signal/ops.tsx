@@ -195,13 +195,19 @@ export function EventStream() {
 }
 
 export function DispatchBoard() {
-  const { live, sendReplacement } = useLive();
+  const { live, sendReplacement, sendNextReplacement } = useLive();
+  const rejected = new Set(live.rejectedOfferIds ?? []);
   return (
     <div className="grid h-[calc(100vh-96px)] lg:grid-cols-[1fr_380px]">
       <MapMount mode="night" height="100%" />
       <aside className="overflow-auto p-4">
         <h1 className="display text-3xl">Live dispatch</h1>
-        <p className="mt-2 text-sm text-[var(--ink-2)]">Offers are company-issued. No auto-assign unless a rule allows it.</p>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">Offers are company-issued. Ranking uses rankReplacements(). No auto-assign.</p>
+        {live.offerStatus === "rejected" || (live.rejectedOfferIds?.length && !live.offerTo) ? (
+          <button type="button" className="zf-btn wide mt-2" data-testid="offer-next-candidate" onClick={sendNextReplacement}>
+            Offer next ranked candidate
+          </button>
+        ) : null}
         {live.candidates.map((c, i) => (
           <div key={c.id} className="zf-panel mt-3 p-3">
             <div className="flex justify-between">
@@ -211,18 +217,24 @@ export function DispatchBoard() {
               <span className="mono">{c.km} km · {c.etaMin} min</span>
             </div>
             <div className="text-sm">
-              {c.klass} · {c.rating} · accept {Math.round(c.accept * 100)}%
+              {c.klass} · {c.rating ? `${c.rating}` : "Not enough data."} · accept {c.accept != null ? `${Math.round(c.accept * 100)}%` : "Not enough data."}
             </div>
             <ul className="mt-1 text-xs text-[var(--mute)]">
-              {c.why.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
+              {c.why.length ? c.why.map((w) => <li key={w}>{w}</li>) : <li>Not enough data.</li>}
             </ul>
-            <button type="button" className="zf-btn mt-2" data-testid={`send-offer-${c.id}`} onClick={() => sendReplacement(c.id)}>
-              Send replacement offer
+            {rejected.has(c.id) ? <p className="mt-2 text-sm text-[var(--warn)]">Rejected — cannot re-offer.</p> : null}
+            <button
+              type="button"
+              className="zf-btn mt-2"
+              data-testid={`send-offer-${c.id}`}
+              disabled={rejected.has(c.id) || live.offerTo === c.id}
+              onClick={() => sendReplacement(c.id)}
+            >
+              {live.offerTo === c.id ? "Offer open" : "Send replacement offer"}
             </button>
           </div>
         ))}
+        {live.candidates.length === 0 ? <p className="mt-4 text-sm text-[var(--mute)]">No ranked candidates. Open an incident first.</p> : null}
       </aside>
     </div>
   );
@@ -241,7 +253,10 @@ export function AirportOps() {
           <div className="text-sm">T2 · Sarah Chen · {live.bookingId}</div>
           <div className="text-sm">Driver {live.assignedId ?? "unassigned"} · wait 45:00</div>
         </div>
-        <div className="zf-panel p-3 text-sm">Pickup zone Door 8 · 2 cars waiting · 1 approaching</div>
+        <div className="zf-panel p-3 text-sm">
+          Pickup zone Door 8 · {live.drivers.filter((d) => d.state === "waiting").length} waiting ·{" "}
+          {live.drivers.filter((d) => d.state === "to_pickup").length} approaching
+        </div>
         <AirportBody />
       </aside>
     </div>

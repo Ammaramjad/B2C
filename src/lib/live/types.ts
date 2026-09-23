@@ -1,3 +1,5 @@
+import type { OfferState } from "../domain/offer.ts";
+
 export type LiveRole = "passenger" | "driver" | "ops" | "system";
 
 export type EventType =
@@ -126,7 +128,22 @@ export type PreferredRequest = {
   id: string;
   driverId: string;
   customer: string;
-  status: "draft" | "requested" | "validating" | "offered" | "confirmed" | "unavailable" | "declined";
+  status:
+    | "pending"
+    | "under_review"
+    | "validated"
+    | "company_offered"
+    | "driver_offered"
+    | "confirmed"
+    | "rejected"
+    | "expired"
+    | "cancelled"
+    | "draft"
+    | "requested"
+    | "validating"
+    | "offered"
+    | "unavailable"
+    | "declined";
   premiumPct: number;
   service?: string;
   schedule?: string;
@@ -162,6 +179,8 @@ export type LiveSnapshot = {
   offerTo: string | null;
   offerExpiresAt: number | null;
   offerRemainSec: number | null;
+  offerStatus: OfferState | null;
+  rejectedOfferIds: string[];
   offerKind: "assignment" | "replacement" | "preferred" | null;
   customerNotice: string | null;
   preferred: PreferredRequest | null;

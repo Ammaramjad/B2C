@@ -1,6 +1,8 @@
 import { rankReplacements } from "./rank.ts";
 import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred.ts";
 import { makeEvent } from "./events.ts";
+import { isOfferExpired, nextOfferState, remainSec } from "../domain/offer.ts";
+import { canPreferredTransition, normalizePreferred } from "../domain/preferred-flow.ts";
 import type { LiveSnapshot } from "./types";
 
 export function applyIncident(s: LiveSnapshot, category: string, note: string): LiveSnapshot {
@@ -27,6 +29,7 @@ export function applyIncident(s: LiveSnapshot, category: string, note: string): 
       ack: false,
     },
     candidates,
+    rejectedOfferIds: [],
     traffic: "incident",
     trafficNote: "Driver reported a problem. Assignment paused pending company action.",
     counters: { ...s.counters, incidents: s.counters.incidents + 1 },
@@ -49,13 +52,23 @@ export const OFFER_TTL_MS = 45_000;
 
 export function applySendOffer(s: LiveSnapshot, driverId: string, kind: NonNullable<LiveSnapshot["offerKind"]> = "replacement"): LiveSnapshot {
   const d = s.drivers.find((x) => x.id === driverId);
+  const expiresAt = Date.now() + OFFER_TTL_MS;
+  let preferred = s.preferred;
+  if (preferred && kind === "preferred") {
+    const cur = normalizePreferred(preferred.status);
+    if (cur === "company_offered" || cur === "validated") {
+      preferred = { ...preferred, status: "driver_offered" };
+    }
+  }
   return {
     ...s,
     phase: kind === "replacement" ? "reassigning" : s.phase,
     offerTo: driverId,
     offerKind: kind,
-    offerExpiresAt: Date.now() + OFFER_TTL_MS,
-    offerRemainSec: OFFER_TTL_MS / 1000,
+    offerStatus: "offered",
+    offerExpiresAt: expiresAt,
+    offerRemainSec: remainSec(expiresAt),
+    preferred,
     events: [
       makeEvent(s.clock, "dispatch.offer.sent", "action", ["driver", "ops"], kind === "replacement" ? "Replacement offer sent" : "Company offer sent", `${d?.name ?? driverId} · ${kind} · ${OFFER_TTL_MS / 1000}s`),
       ...s.events,
@@ -66,6 +79,8 @@ export function applySendOffer(s: LiveSnapshot, driverId: string, kind: NonNulla
 export function applyRejectOffer(s: LiveSnapshot, driverId?: string): LiveSnapshot {
   const id = driverId ?? s.offerTo ?? s.assignedId ?? s.drivers[0]?.id;
   if (!id) return s;
+  const current = s.offerStatus ?? (s.offerTo ? "offered" : "created");
+  if (!nextOfferState(current, "rejected", s.offerExpiresAt)) return s;
   const rejects = { ...s.rejects, [id]: (s.rejects[id] ?? 0) + 1 };
   return {
     ...s,
@@ -73,6 +88,8 @@ export function applyRejectOffer(s: LiveSnapshot, driverId?: string): LiveSnapsh
     offerKind: s.offerTo === id ? null : s.offerKind,
     offerExpiresAt: s.offerTo === id ? null : s.offerExpiresAt,
     offerRemainSec: s.offerTo === id ? null : s.offerRemainSec,
+    offerStatus: s.offerTo === id ? "rejected" : s.offerStatus,
+    rejectedOfferIds: [...(s.rejectedOfferIds ?? []), id],
     rejects,
     events: [
       makeEvent(s.clock, "dispatch.offer.rejected", "warning", ["ops", "driver"], "Offer rejected", `${id} · ${s.bookingId} · rejects ${rejects[id]}`),
@@ -83,14 +100,22 @@ export function applyRejectOffer(s: LiveSnapshot, driverId?: string): LiveSnapsh
 
 export function applyExpireOffer(s: LiveSnapshot): LiveSnapshot {
   if (!s.offerTo || !s.offerExpiresAt || s.offerExpiresAt > Date.now()) return s;
+  const current = s.offerStatus ?? "offered";
+  if (!nextOfferState(current, "expired", s.offerExpiresAt)) return s;
   return {
     ...s,
     offerTo: null,
     offerKind: null,
     offerExpiresAt: null,
     offerRemainSec: 0,
+    offerStatus: "expired",
     events: [makeEvent(s.clock, "dispatch.offer.expired", "warning", ["ops", "driver"], "Offer expired", s.bookingId), ...s.events],
   };
+}
+
+export function nextReplacementCandidate(s: LiveSnapshot) {
+  const skip = new Set([...(s.rejectedOfferIds ?? []), s.assignedId].filter(Boolean) as string[]);
+  return s.candidates.find((c) => !skip.has(c.id)) ?? null;
 }
 
 export function applyShareTrip(s: LiveSnapshot, token: string): LiveSnapshot {
@@ -102,8 +127,10 @@ export function applyShareTrip(s: LiveSnapshot, token: string): LiveSnapshot {
 }
 
 export function applyAcceptOffer(s: LiveSnapshot): LiveSnapshot {
-  const next = s.offerTo ?? s.candidates[0]?.id;
+  const next = s.offerTo;
   if (!next) return s;
+  const current = s.offerStatus ?? "offered";
+  if (isOfferExpired(s.offerExpiresAt) || !nextOfferState(current, "accepted", s.offerExpiresAt)) return s;
   const d = s.drivers.find((x) => x.id === next);
   const from = s.assignedId;
   return {
@@ -115,6 +142,7 @@ export function applyAcceptOffer(s: LiveSnapshot): LiveSnapshot {
     offerKind: null,
     offerExpiresAt: null,
     offerRemainSec: null,
+    offerStatus: "accepted",
     customerNotice: CUSTOMER_REASSIGN_COPY,
     traffic: "clear",
     trafficNote: "Replacement driver en route. Assignment is company-owned.",
@@ -175,7 +203,7 @@ export function applyPreferredRequest(s: LiveSnapshot, driverId: string): LiveSn
       id: `PR-${String(s.events.length + 88)}`,
       driverId,
       customer: s.passenger,
-      status: "requested",
+      status: "pending",
       premiumPct: 18,
       service: "airport_pickup",
       schedule: `${s.flight} · ${s.clock}`,
@@ -193,8 +221,11 @@ export function applyPreferredStatus(
   status: NonNullable<LiveSnapshot["preferred"]>["status"],
 ): LiveSnapshot {
   if (!s.preferred) return s;
-  const next = { ...s.preferred, status };
-  if (status === "validating") {
+  const target = normalizePreferred(status);
+  if (!target) return s;
+  if (!canPreferredTransition(s.preferred.status, target)) return s;
+  const next = { ...s.preferred, status: target };
+  if (target === "under_review") {
     return {
       ...s,
       preferred: next,
@@ -205,19 +236,24 @@ export function applyPreferredStatus(
       ],
     };
   }
-  if (status === "offered") {
+  if (target === "company_offered") {
     return {
       ...s,
       preferred: next,
       events: [makeEvent(s.clock, "preferred.offer.sent", "action", ["driver", "ops"], "Company offer issued", "Official Zoufeng offer — not a private handshake"), ...s.events],
     };
   }
-  if (status === "confirmed") {
+  if (target === "confirmed") {
     return {
       ...s,
       assignedId: s.preferred.driverId,
       preferred: next,
       phase: "driver_assigned",
+      offerStatus: "accepted",
+      offerTo: null,
+      offerKind: null,
+      offerExpiresAt: null,
+      offerRemainSec: null,
       customerNotice: PREFERRED_CONFIRMED_COPY,
       events: [
         makeEvent(s.clock, "preferred.offer.accepted", "info", ["ops", "driver"], "Driver accepted company offer", s.preferred.driverId),
@@ -226,7 +262,7 @@ export function applyPreferredStatus(
       ],
     };
   }
-  if (status === "unavailable") {
+  if (target === "expired") {
     return {
       ...s,
       preferred: next,
@@ -236,12 +272,12 @@ export function applyPreferredStatus(
       ],
     };
   }
-  if (status === "declined") {
+  if (target === "rejected" || target === "cancelled") {
     return {
       ...s,
       preferred: next,
-      customerNotice: "Preferred request declined. Company will assign the next eligible vehicle.",
-      events: [makeEvent(s.clock, "preferred.declined", "warning", ["ops", "passenger"], "Preferred declined", "Company decision — no private booking"), ...s.events],
+      customerNotice: target === "cancelled" ? "Preferred request cancelled." : "Preferred request declined. Company will assign the next eligible vehicle.",
+      events: [makeEvent(s.clock, "preferred.declined", "warning", ["ops", "passenger"], target === "cancelled" ? "Preferred cancelled" : "Preferred declined", "Company decision — no private booking"), ...s.events],
     };
   }
   return { ...s, preferred: next };

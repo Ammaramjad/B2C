@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyAcceptOffer, applyArrive, applyCompleteTrip, applyConfirmAirport, applyDuty, applyIncident, applyPreferredRequest, applyPreferredStatus, applySendOffer, applyVerifyOtp } from "./actions.ts";
+import { applyAcceptOffer, applyArrive, applyCompleteTrip, applyConfirmAirport, applyDuty, applyExpireOffer, applyIncident, applyPreferredRequest, applyPreferredStatus, applyRejectOffer, applySendOffer, applyVerifyOtp, nextReplacementCandidate } from "./actions.ts";
 import { pickupBeat } from "./scenario.ts";
 import { initialSnapshot } from "./seed.ts";
 import { CUSTOMER_REASSIGN_COPY } from "./preferred.ts";
@@ -55,6 +55,34 @@ describe("incident to replacement", () => {
     assert.equal(s.assignedId, "D-118");
     assert.ok(s.events.some((e) => e.type === "preferred.confirmed"));
     assert.ok(s.events.some((e) => e.type === "preferred.requested"));
+  });
+
+  it("rejects the first candidate then accepts the next", () => {
+    resetEventSeq();
+    let s = applyIncident(initialSnapshot(), "Unable to continue trip", "Warning light");
+    const first = s.candidates[0].id;
+    s = applySendOffer(s, first);
+    s = applyRejectOffer(s, first);
+    assert.equal(s.offerStatus, "rejected");
+    assert.ok(s.rejectedOfferIds.includes(first));
+    const nxt = nextReplacementCandidate(s);
+    assert.ok(nxt);
+    assert.notEqual(nxt?.id, first);
+    s = applySendOffer(s, nxt!.id);
+    s = applyAcceptOffer(s);
+    assert.equal(s.assignedId, nxt!.id);
+    assert.notEqual(s.assignedId, first);
+  });
+
+  it("cannot accept an expired offer", () => {
+    resetEventSeq();
+    let s = applySendOffer(initialSnapshot(), "D-221");
+    s = { ...s, offerExpiresAt: Date.now() - 5 };
+    s = applyExpireOffer(s);
+    assert.equal(s.offerStatus, "expired");
+    const after = applyAcceptOffer(s);
+    assert.equal(after.assignedId, s.assignedId);
+    assert.notEqual(after.offerStatus, "accepted");
   });
 });
 

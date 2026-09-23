@@ -50,31 +50,40 @@ function formatRemain(sec: number | null) {
 export function DriverOffer() {
   const { live, acceptReplacement, acceptPreferred, rejectOffer } = useLive();
   const urgent = live.phase === "reassigning" || live.offerKind === "replacement";
-  const preferred = live.offerKind === "preferred" || live.preferred?.status === "offered";
+  const preferred = live.offerKind === "preferred" || live.preferred?.status === "company_offered" || live.preferred?.status === "driver_offered" || live.preferred?.status === "offered";
   const router = useRouter();
   const remain = live.offerRemainSec;
+  const expired = live.offerStatus === "expired" || remain === 0;
+  const blocked = expired || live.offerStatus === "rejected" || live.offerStatus === "withdrawn" || live.offerStatus === "accepted";
   return (
     <div className="space-y-3">
       <div className="flex justify-between">
         <div className="kicker">{urgent ? "Urgent replacement" : preferred ? "Preferred company offer" : "Incoming offer"}</div>
-        <div className="zf-metric text-5xl text-[var(--signal)]">{formatRemain(remain)}</div>
+        <div className="zf-metric text-5xl text-[var(--signal)]" data-testid="offer-countdown">{formatRemain(remain)}</div>
       </div>
       <div className="zf-panel p-4">
         <div className="zf-chip crit">{live.bookingId}</div>
-        <h1 className="display mt-2 text-4xl">TPE T2 → Xinyi</h1>
+        <h1 className="display mt-2 text-4xl">{live.pickup} → {live.dropoff}</h1>
         <dl className="mt-3 space-y-1 text-sm">
-          <div className="flex justify-between"><dt>Distance</dt><dd>{urgent ? "1.2 km" : "14 km"}</dd></div>
-          <div className="flex justify-between"><dt>Flight</dt><dd>BR156 · delayed +18m</dd></div>
+          <div className="flex justify-between"><dt>Distance</dt><dd>{live.distanceKm || "—"} km</dd></div>
+          <div className="flex justify-between"><dt>Flight</dt><dd>{live.flight} · {live.flightStatus}</dd></div>
           <div className="flex justify-between"><dt>Party</dt><dd>5 pax · 4 bags · MPV</dd></div>
-          <div className="flex justify-between"><dt>Est. net</dt><dd className="mono">NT$1,824</dd></div>
+          <div className="flex justify-between"><dt>Quoted fare</dt><dd className="mono">NT${live.fare.toLocaleString()}</dd></div>
+          <div className="flex justify-between"><dt>Offer state</dt><dd>{live.offerStatus ?? "none"}</dd></div>
         </dl>
       </div>
+      {blocked ? (
+        <p className="text-sm text-[var(--warn)]" data-testid="offer-blocked">
+          {expired ? "Offer expired — accept is closed." : `Offer is ${live.offerStatus}. Accept is closed.`}
+        </p>
+      ) : null}
       <div className="grid grid-cols-[1fr_1.3fr] gap-2">
         <button
           type="button"
           className="zf-btn ghost"
           data-testid="reject-offer"
           style={{ minHeight: 72 }}
+          disabled={blocked}
           onClick={() => {
             rejectOffer();
             router.push("/driver");
@@ -87,7 +96,9 @@ export function DriverOffer() {
           className="zf-btn"
           data-testid="accept-offer"
           style={{ minHeight: 72, fontSize: 20 }}
+          disabled={blocked}
           onClick={() => {
+            if (blocked) return;
             if (preferred) acceptPreferred();
             else if (urgent || live.offerTo) acceptReplacement();
             router.push("/driver/run");

@@ -35,10 +35,28 @@ function VehiclePick({ klass, setKlass, pax, bags }: { klass: string; setKlass: 
       {["Sedan", "MPV", "Van"].map((k) => (
         <button key={k} type="button" onClick={() => setKlass(k)} className={`zf-panel p-3 text-left ${klass === k ? "outline outline-1 outline-[var(--signal)]" : ""}`}>
           <b>{k}</b>
-          {!vehicleFits(k, pax, bags) ? <p className="text-sm text-[var(--warn)]">{mismatchCopy(k, pax, bags)}</p> : <p className="text-sm">Fits this party.</p>}
+          {!vehicleFits(k, pax, bags) ? (
+            <p className="text-sm text-[var(--warn)]" data-testid="capacity-mismatch">{mismatchCopy(k, pax, bags)}</p>
+          ) : (
+            <p className="text-sm">Fits this party.</p>
+          )}
         </button>
       ))}
     </div>
+  );
+}
+
+function ConfirmBlocked({ klass, pax, bags, label }: { klass: string; pax: number; bags: number; label: string }) {
+  const ok = vehicleFits(klass, pax, bags);
+  return (
+    <>
+      {!ok ? (
+        <p className="text-sm text-[var(--warn)]" data-testid="capacity-block">
+          Confirm is disabled. {mismatchCopy(klass, pax, bags)}
+        </p>
+      ) : null}
+      <span className="sr-only">{ok ? label : `Disabled: ${mismatchCopy(klass, pax, bags)}`}</span>
+    </>
   );
 }
 
@@ -95,6 +113,7 @@ export function AirportDropBook() {
       </div>
       <VehiclePick klass={klass} setKlass={setKlass} pax={pax} bags={bags} />
       <div className="zf-metric text-3xl">NT${q.total.toLocaleString()}</div>
+      <ConfirmBlocked klass={klass} pax={pax} bags={bags} label="Confirm drop-off" />
       <button
         type="button"
         className="zf-btn wide"
@@ -159,6 +178,7 @@ export function P2pBook() {
       </div>
       <VehiclePick klass={klass} setKlass={setKlass} pax={pax} bags={bags} />
       <div className="zf-metric text-3xl">NT${q.total.toLocaleString()}</div>
+      <ConfirmBlocked klass={klass} pax={pax} bags={bags} label="Confirm transfer" />
       <button
         type="button"
         className="zf-btn wide"
@@ -202,9 +222,11 @@ export function HourlyBook() {
       </label>
       <VehiclePick klass={klass} setKlass={setKlass} pax={5} bags={4} />
       <div className="zf-metric text-3xl">NT${q.total.toLocaleString()}</div>
+      <ConfirmBlocked klass={klass} pax={5} bags={4} label="Confirm charter" />
       <button
         type="button"
         className="zf-btn wide"
+        disabled={!vehicleFits(klass, 5, 4)}
         onClick={() => {
           const b = placeBooking({
             service: "hourly",

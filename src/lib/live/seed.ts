@@ -137,6 +137,8 @@ export function initialSnapshot(): LiveSnapshot {
     offerTo: null,
     offerExpiresAt: null,
     offerRemainSec: null,
+    offerStatus: null,
+    rejectedOfferIds: [],
     offerKind: null,
     customerNotice: null,
     preferred: null,

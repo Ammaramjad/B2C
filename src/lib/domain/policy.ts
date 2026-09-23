@@ -1,4 +1,5 @@
-import { cancelFee, quote } from "../pricing.ts";
+import { quote } from "../pricing.ts";
+import { cancelFee } from "./fees.ts";
 import { vehicleFits, recommendFor, capacityFor } from "../live/capacity.ts";
 import type { ExtraId, ServiceType } from "../types.ts";
 

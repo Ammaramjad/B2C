@@ -21,6 +21,7 @@ describe("canonical booking", () => {
     assert.ok(b);
     assert.equal(b?.pickup, live.pickup);
     assert.ok(b?.price);
+    assert.equal(resolveBooking("ZF-NOT-REAL", [], live), null);
   });
 
   it("derives counters from live drivers and bookings instead of seed constants", () => {

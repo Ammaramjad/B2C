@@ -1,32 +1,34 @@
-# Zoufeng Signal — Live Mobility OS
+# Zoufeng Signal OS
 
-Design-checkpoint prototype. **Not approved for production implementation.**
-
-This is a realtime, map-first operating system preview:
-
-- Passenger live pickup
-- Driver incident + duty
-- Operations command / airport / replacement
-- Two connected scenarios (ZF-82041 disruption, preferred driver)
-
-GPS and traffic in this preview are **simulated** through the same event names production will use.
+Live mobility OS prototype (B2C). **Not production-ready.** GPS, flights, payments, and server persistence are demo or unconfigured.
 
 ## Run
 
 ```bash
 npm install
 npm run dev
-```
-
-- `/design` — inventory, motion, map approach
-- `/demo` — scenario director
-- `/` `/book` `/live` `/preferred`
-- `/driver` `/driver/incident`
-- `/ops` `/ops/incident` `/ops/replace`
-
-Header: Play scenario / Next beat / Reset.
-
-```bash
+npm test
 npm run lint
 npm run build
+npm start   # E2E against the production build
 ```
+
+## Architecture
+
+- App Router + React 19. Domain store: `zf-signal-domain-v1` (legacy read `zoufeng-atlas-v1`).
+- Live tape: `zf-signal-live-v2`.
+- Authoritative domain: `quote`, `cancelFee`, `vehicleFits`, `rankReplacements`, `validatePreferred`, offer + preferred state machines.
+
+## Docs
+
+- `docs/design/SIGNAL_OS.md`
+- `docs/design/PHASE2_ROUTE_AUDIT.md`
+- `docs/design/PHASE2_IMPLEMENTATION.md`
+- `docs/integrations/PERSISTENCE_CONTRACT.md`
+- `docs/integrations/INTEGRATION_MATRIX.md`
+
+## Credentials still required
+
+Production GPS/routing, flight vendor, PSP, server persist, auth, SMS/email/push.
+
+Do not merge this branch to `main`.
