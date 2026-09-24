@@ -88,7 +88,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!c) notFound();
   const copy = COPY[id] ?? { lead: c.tag, faq: [["Bookable?", "Yes — company dispatch."]] as [string, string][], service: "p2p" };
   return (
-    <div className="mx-auto max-w-xl px-4 py-10 pb-24">
+    <div className="zf-site-wrap max-w-3xl">
+      <div className="overflow-hidden rounded-[22px] border border-[#e6ebf2] bg-white">
+        <i className="block h-48 bg-[#eef2f7] bg-cover bg-center" style={{ backgroundImage: `url(${c.image})` }} />
+        <div className="p-6">
       <div className="kicker">{c.tag}</div>
       <h1 className="display mt-2 text-5xl">{c.city}</h1>
       <p className="mt-3 text-[var(--ink-2)]">{copy.lead}</p>
@@ -101,12 +104,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         ))}
       </dl>
-      <Link href={`/book?service=${copy.service}`} className="zf-btn mt-6">
+      <Link href={`/go?service=${copy.service}`} className="zf-btn mt-6">
         Book {copy.service.replaceAll("_", " ")}
       </Link>
-      <Link href="/book?service=p2p" className="zf-btn ghost mt-2">
+      <Link href="/go?service=p2p" className="zf-btn ghost mt-2">
         Book a city transfer
       </Link>
+        </div>
+      </div>
     </div>
   );
 }

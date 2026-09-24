@@ -149,8 +149,8 @@ export function BookingExperience() {
   return (
     <div className="zf-cmd">
       <header className="zf-cmd-nav">
-        <Link href="/go" className="flex items-center gap-2 text-[var(--cmd-ink)]">
-          <span className="zf-pin" style={{ background: "var(--cmd-red)", width: 16, height: 16 }} />
+        <Link href="/" className="flex items-center gap-2 text-[var(--cmd-ink)]">
+          <span className="zf-mark">Z</span>
           <b>ZOUFENG</b>
         </Link>
         <nav className="hidden items-center gap-5 md:flex">
