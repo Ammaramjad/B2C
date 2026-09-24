@@ -1,5 +1,8 @@
 /** Persistence boundary. Demo adapter holds operational state. Production adapter is unconfigured. */
 
+import { vehicles } from "../catalog.ts";
+import { seedFares } from "../catalog-runtime.ts";
+import type { FareRow, Vehicle } from "../types.ts";
 import type { PaymentRecord, WalletTx } from "./payments.ts";
 import type { NotifyDelivery } from "./notify.ts";
 import type { PreferredWorkflow } from "./preferred-flow.ts";
@@ -145,6 +148,8 @@ export type DomainState = {
   preferredCases: PreferredCase[];
   incidents: IncidentRecord[];
   cancellations: CancellationRecord[];
+  catalogVehicles: Vehicle[];
+  fareRows: FareRow[];
 };
 
 export function emptyDomain(): DomainState {
@@ -206,6 +211,8 @@ export function emptyDomain(): DomainState {
     cancellations: [
       { id: "CX-1809", bookingId: "ZD-1809", hoursBefore: 28, fee: 0, refund: 1680, at: "2026-09-16T13:10:00+08:00" },
     ],
+    catalogVehicles: vehicles,
+    fareRows: seedFares(),
   };
 }
 

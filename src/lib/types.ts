@@ -34,7 +34,7 @@ export type DriverWork = "available" | "busy" | "offline";
 export type FleetTier = "A" | "B" | "C";
 
 export interface Vehicle {
-  id: VehicleClass;
+  id: string;
   name: string;
   nameZh: string;
   model: string;
@@ -44,7 +44,18 @@ export interface Vehicle {
   ev?: boolean;
   wheel?: boolean;
   meet?: boolean;
+  image?: string;
+  panoramic?: string;
 }
+
+export type FareRow = {
+  id: string;
+  service: ServiceType | "all";
+  vehicleId: string;
+  base: number;
+  label: string;
+  labelZh: string;
+};
 
 export interface Taxi {
   id: TaxiClass;

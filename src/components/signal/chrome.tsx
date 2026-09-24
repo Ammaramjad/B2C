@@ -407,11 +407,50 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
+function GuestChrome({ children }: { children: React.ReactNode }) {
+  const { L } = useCopy();
+  return (
+    <div className="min-h-screen bg-[#f4f1ea]">
+      <HtmlLang />
+      <header className="sticky top-0 z-40 border-b border-[#ece6dc] bg-white/90 px-5 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3">
+          <Link href="/go" className="flex items-center gap-2">
+            <span className="zf-pin" style={{ background: "var(--signal)", width: 18, height: 18 }} />
+            <b className="text-lg">ZOUFENG</b>
+          </Link>
+          <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
+            <Link href="/go">{L("Book", "預訂")}</Link>
+            <Link href="/go/book">{L("Cars", "車款")}</Link>
+            <Link href="/trips">{L("My trips", "我的行程")}</Link>
+            <Link href="/help">{L("Help", "協助")}</Link>
+          </nav>
+          <div className="flex items-center gap-2">
+            <LocaleBar />
+            <Link href="/go/book" className="zf-btn" style={{ minHeight: 36 }}>{L("Start booking", "開始預訂")}</Link>
+          </div>
+        </div>
+      </header>
+      <main>{children}</main>
+    </div>
+  );
+}
+
 export function SignalRoot({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const os = path.startsWith("/driver") ? "driver" : path.startsWith("/ops") ? "ops" : path.startsWith("/admin") ? "admin" : path.startsWith("/design") || path.startsWith("/demo") ? "system" : "passenger";
+  const os = path.startsWith("/go")
+    ? "guest"
+    : path.startsWith("/driver")
+      ? "driver"
+      : path.startsWith("/ops")
+        ? "ops"
+        : path.startsWith("/admin")
+          ? "admin"
+          : path.startsWith("/design") || path.startsWith("/demo")
+            ? "system"
+            : "passenger";
   return (
-    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" ? "passenger" : os} className="min-h-screen">
+    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" || os === "guest" ? "passenger" : os} className="min-h-screen">
+      {os === "guest" ? <GuestChrome>{children}</GuestChrome> : null}
       {os === "passenger" ? <PassengerChrome>{children}</PassengerChrome> : null}
       {os === "driver" ? <DriverChrome>{children}</DriverChrome> : null}
       {os === "ops" ? <OpsChrome>{children}</OpsChrome> : null}

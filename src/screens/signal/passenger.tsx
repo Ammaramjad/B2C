@@ -64,7 +64,10 @@ export function PassengerHome() {
               </Link>
             ))}
           </div>
-          <Link href="/book" className="zf-btn wide">
+          <Link href="/go" className="zf-btn wide">
+            {L("Open guest booking", "開啟旅客預訂")}
+          </Link>
+          <Link href="/book" className="zf-btn ghost wide">
             {L("Start airport pickup", "開始機場接機")}
           </Link>
           {live.assignedId ? (

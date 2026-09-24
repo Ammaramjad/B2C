@@ -9,12 +9,14 @@ import { paymentFromBooking, type PaymentRecord, type WalletTx } from "./domain/
 import { templateFor } from "./domain/notify";
 import { loc } from "./i18n";
 import { cancelFee, COMMISSION, quote } from "./pricing";
+import { syncCatalog } from "./catalog-runtime";
 import type {
   Booking,
   BookingStatus,
   Channel,
   Currency,
   ExtraId,
+  FareRow,
   Locale,
   Message,
   Role,
@@ -24,6 +26,7 @@ import type {
   SwitchStatus,
   Ticket,
   User,
+  Vehicle,
 } from "./types";
 
 const KEY = "zf-signal-domain-v1";
@@ -116,6 +119,10 @@ interface Store {
   queueNotify: (event: string, audience?: string) => NotificationLog;
   syncTapeNotices: (events: { id: string; type: string; title: string; body: string; audience: string[]; clock?: string }[]) => void;
   setTranslationStatus: (key: string, status: TranslationRow["status"]) => void;
+  upsertVehicle: (row: Vehicle) => void;
+  deleteVehicle: (id: string) => void;
+  upsertFare: (row: FareRow) => void;
+  deleteFare: (id: string) => void;
   inboxReadAt: number;
   markInboxRead: () => void;
 }
@@ -187,6 +194,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           preferredCases: keep(incoming.preferredCases, base.preferredCases),
           refunds: keep(incoming.refunds, base.refunds),
           translations: keep(incoming.translations, base.translations),
+          catalogVehicles: keep(incoming.catalogVehicles, base.catalogVehicles),
+          fareRows: keep(incoming.fareRows, base.fareRows),
         };
       })(),
     };
@@ -239,6 +248,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (updater: (xs: SwitchRequest[]) => SwitchRequest[]) => setSwitchesState((xs) => updater(xs ?? persistedSwitches)),
     [persistedSwitches],
   );
+
+  useEffect(() => {
+    syncCatalog(domain.catalogVehicles, domain.fareRows);
+  }, [domain.catalogVehicles, domain.fareRows]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -586,6 +599,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             ...cur,
             translations: cur.translations.map((t) => (t.key === key && t.status !== "approved" && t.status !== "APPROVED" ? { ...t, status, updated: new Date().toISOString().slice(0, 10) } : t)),
           };
+        }),
+      upsertVehicle: (row) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const exists = cur.catalogVehicles.some((v) => v.id === row.id);
+          return { ...cur, catalogVehicles: exists ? cur.catalogVehicles.map((v) => (v.id === row.id ? row : v)) : [...cur.catalogVehicles, row] };
+        }),
+      deleteVehicle: (id) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          if (cur.catalogVehicles.length <= 1) return cur;
+          return { ...cur, catalogVehicles: cur.catalogVehicles.filter((v) => v.id !== id), fareRows: cur.fareRows.filter((f) => f.vehicleId !== id) };
+        }),
+      upsertFare: (row) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const exists = cur.fareRows.some((f) => f.id === row.id);
+          return { ...cur, fareRows: exists ? cur.fareRows.map((f) => (f.id === row.id ? row : f)) : [...cur.fareRows, row] };
+        }),
+      deleteFare: (id) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return { ...cur, fareRows: cur.fareRows.filter((f) => f.id !== id) };
         }),
     }),
     [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, inboxReadAt, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
