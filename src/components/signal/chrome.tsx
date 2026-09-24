@@ -222,9 +222,9 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
       <span className="zf-orb c" />
       <div className="relative z-[2] hidden min-h-screen flex-col lg:flex">
         <div className="relative min-h-[62vh] flex-1 overflow-hidden">
-          <div className="zf-radar"><div className="zf-sweep" /></div>
           <MapMount mode="night" height="62vh" showFleet />
-          <div className="pointer-events-none absolute left-5 top-5 z-[20] max-w-md">
+          <div className="zf-radar z-[450]"><div className="zf-sweep" /></div>
+          <div className="pointer-events-none absolute left-5 top-5 z-[600] max-w-md">
             <div className="zf-glass pointer-events-auto px-4 py-3">
               <div className="kicker">{L("Driver desktop", "司機桌面")}</div>
               <h2 className="display mt-1 text-3xl">{L("Stay on the assignment.", "守住這趟派遣。")}</h2>

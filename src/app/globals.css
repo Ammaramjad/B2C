@@ -280,7 +280,7 @@ button, input, select, textarea {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
+  z-index: 450;
   background: repeating-radial-gradient(circle at 42% 46%, transparent 0 46px, rgba(255,255,255,0.035) 47px 48px);
 }
 .zf-sweep {
