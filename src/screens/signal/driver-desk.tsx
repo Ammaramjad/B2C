@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { drivers, seedBookings, seedSettlements } from "@/lib/data";
 import { formatMetric, mergeScorecards, scorecardFromCatalog, scorecardFromLive } from "@/lib/live/metrics";
@@ -12,54 +12,97 @@ import { useCopy, corridor } from "@/lib/copy";
 
 const me = drivers[0];
 
+const PHASES = ["assigned", "en_route_airport", "near_airport", "arrived", "waiting", "trip_started", "en_route_dest", "completed"] as const;
+
+function Ring({ value, label, accent }: { value: number; label: string; accent: string }) {
+  const p = Math.max(0, Math.min(1, value));
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg className="zf-ring" viewBox="0 0 80 80" style={{ "--p": p, "--accent": accent } as CSSProperties}>
+        <circle className="track" cx="40" cy="40" r="36" />
+        <circle className="fill" cx="40" cy="40" r="36" />
+        <text x="40" y="44" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="700">
+          {Math.round(p * 100)}
+        </text>
+      </svg>
+      <div className="kicker">{label}</div>
+    </div>
+  );
+}
+
 export function DriverDutyHome() {
   const { live, setDuty } = useLive();
   const { L } = useCopy();
   const d = live.drivers[0];
+  const phaseIdx = Math.max(0, PHASES.indexOf(live.phase as (typeof PHASES)[number]));
+  const bars = [0.45, 0.7, 0.55, 0.92, 0.64, 0.8, 0.5];
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h1 className="display text-4xl">{d.duty}</h1>
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <div className="kicker">{L("Duty status", "執勤狀態")}</div>
+          <h1 className="display text-5xl capitalize">{d.duty}</h1>
+        </div>
         <span className="zf-chip live">{d.state}</span>
       </div>
-      <div className="grid grid-cols-4 gap-1">
+      <div className="zf-duty">
         {(["online", "busy", "break", "offline"] as const).map((x) => (
-          <button key={x} type="button" className={`zf-btn ${d.duty === x ? "" : "ghost"}`} style={{ minHeight: 40, fontSize: 12 }} onClick={() => setDuty(d.id, x)}>
-            {x}
+          <button key={x} type="button" className={d.duty === x ? "on" : ""} onClick={() => setDuty(d.id, x)}>
+            <i className="zf-dot" />
+            <span className="text-sm capitalize">{x}</span>
           </button>
         ))}
       </div>
-      <div className="zf-panel p-4">
-        <div className="kicker">{L("Current / next", "目前／下一趟")}</div>
-        <div className="mt-1 text-xl font-semibold">
+      <div className="zf-glass p-5">
+        <div className="flex items-center justify-between">
+          <div className="kicker">{L("Current / next", "目前／下一趟")}</div>
+          <span className="zf-chip ok">{live.phase.replaceAll("_", " ")}</span>
+        </div>
+        <div className="mt-2 text-2xl font-semibold">
           {live.bookingId} · {live.pickup}
         </div>
-        <p className="text-sm text-[var(--ink-2)]">
-          {live.flight} · {live.passenger} · {live.phase.replaceAll("_", " ")}
+        <p className="mt-1 text-sm text-[var(--ink-2)]">
+          {live.flight} · {live.passenger} · {d.etaMin} min
         </p>
-        <Link href="/driver/run" className="zf-btn wide mt-3">
+        <div className="zf-phase mt-4">
+          {PHASES.map((p, i) => (
+            <i key={p} className={i <= phaseIdx ? "on" : ""} title={p} />
+          ))}
+        </div>
+        <Link href="/driver/run" className="zf-btn wide mt-4">
           {L("Open assignment", "開啟派遣")}
         </Link>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <Link href="/driver/history" className="zf-panel p-3">{L("History", "歷史")}</Link>
-          <Link href="/driver/settlement" className="zf-panel p-3">{L("Settlement", "結算")}</Link>
-          <Link href="/driver/documents" className="zf-panel p-3">{L("Vehicle / docs", "車輛／證件")}</Link>
-          <Link href="/driver/safety" className="zf-panel p-3">{L("Safety", "安全")}</Link>
-          <Link href="/driver/inbox" className="zf-panel p-3">{L("Inbox", "收件匣")}</Link>
-          <Link href="/driver/support" className="zf-panel p-3">{L("Support", "支援")}</Link>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <Link href="/driver/history" className="zf-glass p-4">{L("History", "歷史")}</Link>
+          <Link href="/driver/settlement" className="zf-glass p-4">{L("Settlement", "結算")}</Link>
+          <Link href="/driver/documents" className="zf-glass p-4">{L("Vehicle / docs", "車輛／證件")}</Link>
+          <Link href="/driver/safety" className="zf-glass p-4">{L("Safety", "安全")}</Link>
+          <Link href="/driver/inbox" className="zf-glass p-4">{L("Inbox", "收件匣")}</Link>
+          <Link href="/driver/support" className="zf-glass p-4">{L("Support", "支援")}</Link>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          [L("Today", "今日"), `NT$${me.earningsToday.toLocaleString()}`],
-          [L("Week trips", "本週趟次"), String(me.completedWeek)],
-          [L("Accept", "接單率"), formatMetric(me.acceptRate, "pct")],
-        ].map(([k, v]) => (
-          <div key={k} className="zf-panel p-3">
-            <div className="kicker">{k}</div>
-            <div className="zf-metric">{v}</div>
+      <div className="zf-glass grid grid-cols-3 gap-2 p-4">
+        <Ring value={d.accept} label={L("Accept", "接單")} accent="#2b5bff" />
+        <Ring value={d.onTime} label={L("On time", "準時")} accent="#14b8a6" />
+        <Ring value={Math.min(1, me.completedWeek / 24)} label={L("Week load", "週負載")} accent="#ff3b48" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="zf-glass p-4">
+          <div className="kicker">{L("Today", "今日")}</div>
+          <div className="zf-metric mt-1 text-3xl">NT${me.earningsToday.toLocaleString()}</div>
+          <div className="zf-spark-bar mt-3">
+            {bars.map((h, i) => (
+              <b key={i} style={{ height: `${h * 100}%`, animationDelay: `${i * 80}ms` }} />
+            ))}
           </div>
-        ))}
+        </div>
+        <div className="zf-glass p-4">
+          <div className="kicker">{L("This week", "本週")}</div>
+          <div className="zf-metric mt-1 text-3xl">{me.completedWeek} {L("trips", "趟")}</div>
+          <p className="mt-3 text-sm text-[var(--ink-2)]">
+            {L("Online", "上線")} {d.onlineHours}h · {d.fleet} {L("fleet", "車隊")}
+          </p>
+        </div>
       </div>
     </div>
   );

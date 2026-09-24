@@ -24,11 +24,11 @@
   --ink-2: #d7dee6;
   --mute: #b4bec9;
   --line: #3a4554;
-  --mist: #0b0f14;
-  --paper: #1b222c;
+  --mist: #0e1520;
+  --paper: #1a2433;
   --signal: #ff3b48;
   --signal-ink: #fff5f5;
-  --shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
   color: var(--ink);
   background: var(--mist);
 }
@@ -251,6 +251,137 @@ button, input, select, textarea {
 .zf-table td { padding: 11px 8px; border-bottom: 1px solid var(--line); vertical-align: top; word-spacing: 0.08em; }
 .zf-rail { display: flex; flex-direction: column; gap: 2px; }
 .zf-spark { width: 100%; height: 72px; }
+
+.zf-cockpit {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 70% 50% at 12% 8%, rgba(43, 91, 255, 0.28), transparent 58%),
+    radial-gradient(ellipse 55% 42% at 88% 92%, rgba(255, 59, 72, 0.18), transparent 52%),
+    linear-gradient(180deg, #152033 0%, #0c121c 100%);
+}
+.zf-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: 0;
+}
+.zf-orb.a { width: 280px; height: 280px; left: -40px; top: 12%; background: rgba(43, 91, 255, 0.35); animation: zf-drift 14s ease-in-out infinite; }
+.zf-orb.b { width: 220px; height: 220px; right: 8%; bottom: 8%; background: rgba(255, 59, 72, 0.22); animation: zf-drift 11s ease-in-out infinite reverse; }
+.zf-orb.c { width: 160px; height: 160px; left: 38%; top: 48%; background: rgba(20, 184, 166, 0.18); animation: zf-drift 16s ease-in-out infinite 1.4s; }
+@keyframes zf-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(36px, -28px, 0) scale(1.18); }
+}
+.zf-radar {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-radial-gradient(circle at 42% 46%, transparent 0 46px, rgba(255,255,255,0.035) 47px 48px);
+}
+.zf-sweep {
+  position: absolute;
+  width: 160%;
+  height: 160%;
+  left: -30%;
+  top: -30%;
+  background: conic-gradient(from 0deg, transparent 0 78%, rgba(90, 140, 255, 0.16) 100%);
+  animation: zf-spin 9s linear infinite;
+}
+@keyframes zf-spin { to { transform: rotate(360deg); } }
+.zf-glass {
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+.zf-duty {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.zf-duty button {
+  min-height: 72px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  color: var(--ink);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.zf-duty button.on {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: #fff;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--signal) 22%, transparent);
+}
+.zf-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: currentColor;
+}
+.zf-duty button.on .zf-dot { animation: zf-pulse 1.4s ease-in-out infinite; }
+@keyframes zf-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.7); opacity: 0.45; }
+}
+.zf-ring { width: 92px; height: 92px; }
+.zf-ring circle { fill: none; stroke-width: 8; stroke-linecap: round; }
+.zf-ring .track { stroke: color-mix(in srgb, var(--line) 80%, transparent); }
+.zf-ring .fill {
+  stroke: var(--accent, var(--signal));
+  stroke-dasharray: 226;
+  stroke-dashoffset: calc(226 - (226 * var(--p, 0)));
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.zf-phase {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.zf-phase i {
+  height: 6px;
+  flex: 1;
+  border-radius: 99px;
+  background: var(--line);
+}
+.zf-phase i.on {
+  background: var(--signal);
+  animation: zf-bar 1.2s ease-in-out infinite;
+}
+@keyframes zf-bar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.zf-spark-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 56px;
+}
+.zf-spark-bar b {
+  flex: 1;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #ff6b74, #ff3b48);
+  animation: zf-grow 0.9s ease both;
+}
+@keyframes zf-grow {
+  from { transform: scaleY(0.15); transform-origin: bottom; }
+  to { transform: scaleY(1); transform-origin: bottom; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

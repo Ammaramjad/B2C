@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLive } from "@/lib/live/engine";
 import { useCopy } from "@/lib/copy";
 import { useStore } from "@/lib/store";
+import { MapMount } from "@/components/signal/map-mount";
 
 function Director({ compact = false }: { compact?: boolean }) {
   const { live, play, pause, reset, step, setScenario } = useLive();
@@ -210,40 +211,63 @@ export function DriverChrome({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { live } = useLive();
   const { L } = useCopy();
+  const me = live.drivers[0];
   const onDuty = ["en_route_airport", "near_airport", "arrived", "waiting", "trip_started", "en_route_dest", "reassigned", "disrupted"].includes(live.phase);
+  const tape = live.events.filter((e) => e.audience.includes("driver")).slice(0, 5);
   return (
-    <div className="min-h-screen bg-[var(--mist)] lg:grid lg:grid-cols-[1fr_430px]">
+    <div className="zf-cockpit min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(520px,42vw)]">
       <HtmlLang />
-      <div className="hidden border-r border-[var(--line)] lg:block">
-        <div className="p-6">
-          <div className="kicker">{L("Driver desktop", "司機桌面")}</div>
-          <h2 className="display mt-2 text-4xl">{L("Stay on the assignment.", "守住這趟派遣。")}</h2>
-          <p className="mt-3 max-w-md text-sm text-[var(--ink-2)]">
-            {L("Map and event tape stay on the left. Task controls stay in the column — no invented KPIs.", "地圖與事件帶在左側，任務操作在右側欄——不編造 KPI。")}
-          </p>
-          <div className="mt-6">
-            <RoleJump />
+      <span className="zf-orb a" />
+      <span className="zf-orb b" />
+      <span className="zf-orb c" />
+      <div className="relative z-[2] hidden min-h-screen flex-col lg:flex">
+        <div className="relative min-h-[62vh] flex-1 overflow-hidden">
+          <div className="zf-radar"><div className="zf-sweep" /></div>
+          <MapMount mode="night" height="62vh" showFleet />
+          <div className="pointer-events-none absolute left-5 top-5 z-[20] max-w-md">
+            <div className="zf-glass pointer-events-auto px-4 py-3">
+              <div className="kicker">{L("Driver desktop", "司機桌面")}</div>
+              <h2 className="display mt-1 text-3xl">{L("Stay on the assignment.", "守住這趟派遣。")}</h2>
+              <p className="mt-2 text-sm text-[var(--ink-2)]">
+                {L("Live cars move on the map. Duty, job and money stay in the wide console.", "即時車輛在地圖移動。執勤、任務與收入在右側寬控制台。")}
+              </p>
+              <div className="mt-3 pointer-events-auto">
+                <RoleJump />
+              </div>
+            </div>
           </div>
         </div>
+        <ul className="zf-stream z-[2] mx-5 mb-5 mt-4 max-h-40 overflow-auto rounded-2xl border border-[var(--line)] bg-[color-mix(in_srgb,var(--paper)_72%,transparent)] px-4">
+          {tape.length ? tape.map((e) => (
+            <li key={e.id}>{e.clock} · {e.title}</li>
+          )) : <li>{L("Waiting for live tape…", "等待即時事件帶…")}</li>}
+        </ul>
       </div>
-      <div className="mx-auto w-full max-w-[430px] lg:max-w-none">
-      <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-        <div>
-          <div className="kicker">{L("Driver command", "司機指揮")}</div>
-          <div className="text-lg font-semibold">David / Jason</div>
+      <div className="relative z-[3] mx-auto w-full max-w-[640px] border-l border-[var(--line)] bg-[color-mix(in_srgb,var(--mist)_82%,transparent)] backdrop-blur-md lg:max-w-none">
+      <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--signal)] text-sm font-bold text-white shadow-[0_0_0_8px_color-mix(in_srgb,var(--signal)_20%,transparent)]">
+            {me.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+          </span>
+          <div>
+            <div className="kicker">{L("Driver command", "司機指揮")}</div>
+            <div className="text-xl font-semibold">{me.name}</div>
+            <div className="text-xs text-[var(--mute)]">{me.vehicle} · {me.plate}</div>
+          </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <LiveBell />
           <LocaleBar />
           <Director compact />
         </div>
       </header>
       {onDuty ? (
-        <Link href="/driver/incident" className="mx-4 mb-3 block bg-[var(--signal)] py-3 text-center text-sm font-bold text-white">
+        <Link href="/driver/incident" className="mx-5 mb-3 block rounded-2xl bg-[var(--signal)] py-3 text-center text-sm font-bold text-white">
           {L("REPORT INCIDENT", "回報事件")}
         </Link>
       ) : null}
-      <div className="px-4 pb-24">{children}</div>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-[var(--line)] bg-[var(--mist)] text-center text-[11px] lg:left-auto lg:w-[430px]">
+      <div className="px-5 pb-28">{children}</div>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--mist)_92%,transparent)] text-center text-[12px] backdrop-blur lg:left-auto lg:w-[min(42vw,640px)]">
         {[
           ["/driver", L("Duty", "執勤")],
           ["/driver/offer", L("Offer", "指派")],
