@@ -517,8 +517,11 @@ button, input, select, textarea {
   height: 2px;
   background: var(--cmd-red);
 }
-.zf-cmd-body { display: grid; grid-template-columns: 88px 1fr minmax(500px, 560px); min-height: 0; }
+.zf-cmd-body { display: grid; grid-template-columns: auto 1fr minmax(500px, 560px); min-height: 0; }
 .zf-cmd-rail {
+  width: 88px;
+  overflow: hidden;
+  transition: width 0.2s ease;
   border-right: 1px solid var(--cmd-line);
   padding: 12px 8px;
   display: flex;
@@ -526,6 +529,7 @@ button, input, select, textarea {
   gap: 6px;
   background: #101722;
 }
+.zf-cmd-rail:hover, .zf-cmd-rail:focus-within { width: 200px; }
 .zf-cmd-rail button, .zf-cmd-rail a {
   display: flex;
   align-items: center;
