@@ -20,15 +20,25 @@
 
 [data-os="driver"],
 [data-os="ops"] {
-  --ink: #f3f6fa;
-  --ink-2: #c5ced8;
-  --mute: #8b96a4;
-  --line: #2a3340;
+  --ink: #f7fafc;
+  --ink-2: #d7dee6;
+  --mute: #b4bec9;
+  --line: #3a4554;
   --mist: #0b0f14;
-  --paper: #161c24;
+  --paper: #1b222c;
   --signal: #ff3b48;
-  --signal-ink: #1a0708;
+  --signal-ink: #fff5f5;
   --shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  color: var(--ink);
+  background: var(--mist);
+}
+[data-os="driver"] h1,
+[data-os="driver"] h2,
+[data-os="driver"] p,
+[data-os="ops"] h1,
+[data-os="ops"] h2,
+[data-os="ops"] p {
+  color: var(--ink);
 }
 
 @theme inline {
