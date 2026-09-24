@@ -9,12 +9,14 @@ import { paymentFromBooking, type PaymentRecord, type WalletTx } from "./domain/
 import { templateFor } from "./domain/notify";
 import { loc } from "./i18n";
 import { cancelFee, COMMISSION, quote } from "./pricing";
+import { syncCatalog } from "./catalog-runtime";
 import type {
   Booking,
   BookingStatus,
   Channel,
   Currency,
   ExtraId,
+  FareRow,
   Locale,
   Message,
   Role,
@@ -24,6 +26,7 @@ import type {
   SwitchStatus,
   Ticket,
   User,
+  Vehicle,
 } from "./types";
 
 const KEY = "zf-signal-domain-v1";
@@ -96,6 +99,7 @@ interface Store {
   requestSwitch: (opts: { bookingId?: string; fromDriverId: string; reason: string; reasonZh: string }) => SwitchRequest;
   decideSwitch: (id: string, status: SwitchStatus, toDriverId?: string) => void;
   tickets: Ticket[];
+  createTicket: (opts: { category: string; categoryZh: string; message: string; bookingId?: string }) => Ticket;
   settlements: Settlement[];
   messages: Message[];
   askHalo: (text: string) => void;
@@ -113,7 +117,14 @@ interface Store {
   setPaymentStatus: (id: string, status: PaymentRecord["status"]) => void;
   addWalletTx: (tx: WalletTx) => void;
   queueNotify: (event: string, audience?: string) => NotificationLog;
+  syncTapeNotices: (events: { id: string; type: string; title: string; body: string; audience: string[]; clock?: string }[]) => void;
   setTranslationStatus: (key: string, status: TranslationRow["status"]) => void;
+  upsertVehicle: (row: Vehicle) => void;
+  deleteVehicle: (id: string) => void;
+  upsertFare: (row: FareRow) => void;
+  deleteFare: (id: string) => void;
+  inboxReadAt: number;
+  markInboxRead: () => void;
 }
 
 const defaultDraft: Draft = {
@@ -168,15 +179,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       domain: (() => {
         const incoming = ((parsed?.domain as Partial<DomainState> | undefined) ?? {}) as Partial<DomainState>;
         const base = emptyDomain();
+        const keep = <T,>(xs: T[] | undefined, seed: T[]) => (xs && xs.length ? xs : seed);
         return {
           ...base,
           ...incoming,
           mode: "demo" as const,
-          cancellations: incoming.cancellations ?? base.cancellations,
-          incidents: incoming.incidents ?? base.incidents,
+          cancellations: keep(incoming.cancellations, base.cancellations),
+          incidents: keep(incoming.incidents, base.incidents),
           payments: incoming.payments ?? base.payments,
           wallet: incoming.wallet ?? base.wallet,
-          notifications: incoming.notifications ?? base.notifications,
+          notifications: keep(incoming.notifications, base.notifications),
+          audit: keep(incoming.audit, base.audit),
+          notes: keep(incoming.notes, base.notes),
+          preferredCases: keep(incoming.preferredCases, base.preferredCases),
+          refunds: keep(incoming.refunds, base.refunds),
+          translations: keep(incoming.translations, base.translations),
+          catalogVehicles: keep(incoming.catalogVehicles, base.catalogVehicles),
+          fareRows: keep(incoming.fareRows, base.fareRows),
         };
       })(),
     };
@@ -200,7 +219,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [draftState, setDraftState] = useState<Draft | undefined>(undefined);
   const [bookingsState, setBookingsState] = useState<Booking[] | undefined>(undefined);
   const [switchesState, setSwitchesState] = useState<SwitchRequest[] | undefined>(undefined);
-  const [tickets] = useState<Ticket[]>(seedTickets);
+  const [tickets, setTickets] = useState<Ticket[]>(seedTickets);
   const [settlements] = useState<Settlement[]>(seedSettlements);
   const [messages, setMessages] = useState<Message[]>([
     { id: "m0", role: "agent", text: "走癲派車 24h FAQ · price / modify / cancel / complaint. 英文姓名不翻譯。" },
@@ -208,6 +227,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recentState, setRecentState] = useState<string[] | undefined>(undefined);
   const [cancelMidPctState, setCancelMidPct] = useState<number | undefined>(undefined);
   const [domainState, setDomainState] = useState<DomainState | undefined>(undefined);
+  const [inboxReadAt, setInboxReadAt] = useState(0);
 
   const locale = localeState ?? persistedLocale;
   const currency = currencyState ?? persistedCurrency;
@@ -228,6 +248,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (updater: (xs: SwitchRequest[]) => SwitchRequest[]) => setSwitchesState((xs) => updater(xs ?? persistedSwitches)),
     [persistedSwitches],
   );
+
+  useEffect(() => {
+    syncCatalog(domain.catalogVehicles, domain.fareRows);
+  }, [domain.catalogVehicles, domain.fareRows]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -459,6 +483,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       tickets,
+      createTicket: ({ category, categoryZh, message, bookingId }) => {
+        const row: Ticket = {
+          id: `TK-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
+          passengerId: user?.id ?? "p1",
+          bookingId,
+          category,
+          categoryZh,
+          message,
+          status: "open",
+          createdAt: new Date().toISOString(),
+        };
+        setTickets((xs) => [row, ...xs]);
+        return row;
+      },
       settlements,
       messages,
       askHalo: (text) => {
@@ -515,6 +553,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           payments: (d ?? persistedDomain).payments.map((p: PaymentRecord) => (p.id === id ? { ...p, status } : p)),
         })),
       addWalletTx: (tx) => setDomainState((d) => ({ ...(d ?? persistedDomain), wallet: [tx, ...(d ?? persistedDomain).wallet] })),
+      inboxReadAt,
+      markInboxRead: () => setInboxReadAt(Date.now()),
+      syncTapeNotices: (events) => {
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const have = new Set(cur.notifications.map((n) => n.id));
+          const add = events
+            .filter((e) => !have.has(`LE-${e.id}`))
+            .map((e) => ({
+              id: `LE-${e.id}`,
+              event: e.type,
+              audience: e.audience.includes("passenger") ? "passenger" : e.audience.includes("driver") ? "driver" : "ops",
+              channel: "in_app" as const,
+              language: locale,
+              template: `${e.title} — ${e.body}`,
+              status: "generated" as const,
+              at: new Date().toISOString(),
+              providerConfirmed: false,
+            }));
+          if (!add.length) return cur;
+          return { ...cur, notifications: [...add, ...cur.notifications] };
+        });
+      },
       queueNotify: (event, audience) => {
         const t = templateFor(event);
         const row: NotificationLog = {
@@ -539,8 +600,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             translations: cur.translations.map((t) => (t.key === key && t.status !== "approved" && t.status !== "APPROVED" ? { ...t, status, updated: new Date().toISOString().slice(0, 10) } : t)),
           };
         }),
+      upsertVehicle: (row) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const exists = cur.catalogVehicles.some((v) => v.id === row.id);
+          return { ...cur, catalogVehicles: exists ? cur.catalogVehicles.map((v) => (v.id === row.id ? row : v)) : [...cur.catalogVehicles, row] };
+        }),
+      deleteVehicle: (id) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          if (cur.catalogVehicles.length <= 1) return cur;
+          return { ...cur, catalogVehicles: cur.catalogVehicles.filter((v) => v.id !== id), fareRows: cur.fareRows.filter((f) => f.vehicleId !== id) };
+        }),
+      upsertFare: (row) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const exists = cur.fareRows.some((f) => f.id === row.id);
+          return { ...cur, fareRows: exists ? cur.fareRows.map((f) => (f.id === row.id ? row : f)) : [...cur.fareRows, row] };
+        }),
+      deleteFare: (id) =>
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          return { ...cur, fareRows: cur.fareRows.filter((f) => f.id !== id) };
+        }),
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, inboxReadAt, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,4 +1,5 @@
-import { HOURLY_RATE, NIGHT_RATE, SURGE, extras as extraCat, promos, rentals, taxis, vehicles } from "./catalog.ts";
+import { HOURLY_RATE, NIGHT_RATE, SURGE, extras as extraCat, promos, rentals, taxis } from "./catalog.ts";
+import { fareFor } from "./catalog-runtime.ts";
 import type { Currency, ExtraId, LineItem, ServiceType } from "./types.ts";
 
 const FX: Record<Currency, number> = { TWD: 1, USD: 0.031 };
@@ -31,7 +32,7 @@ export function quote(opts: {
   days?: number;
   surge?: boolean;
 }) {
-  let base = vehicles.find((v) => v.id === opts.vehicle)?.base ?? 1280;
+  let base = fareFor(opts.service, opts.vehicle);
   if (opts.service === "hourly") base = HOURLY_RATE * (opts.hours ?? 4);
   if (opts.service === "rental") base = (rentals.find((r) => r.id === opts.vehicle)?.day ?? 1680) * (opts.days ?? 1);
   if (opts.service === "instant") base = taxis.find((t) => t.id === opts.vehicle)?.base ?? 185;

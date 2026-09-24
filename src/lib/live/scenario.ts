@@ -4,6 +4,28 @@ import { CUSTOMER_REASSIGN_COPY, PREFERRED_CONFIRMED_COPY } from "./preferred.ts
 import { makeEvent } from "./events.ts";
 import type { LiveSnapshot } from "./types";
 
+/** Nearby cars keep moving in the customer area even when the scenario is paused. */
+export function wanderFleet(s: LiveSnapshot): LiveSnapshot {
+  const locked = new Set<string>();
+  if (s.assignedId && ["en_route_airport", "near_airport", "en_route_dest", "arriving", "reassigned"].includes(s.phase)) {
+    locked.add(s.assignedId);
+  }
+  if (s.replacementId) locked.add(s.replacementId);
+  return {
+    ...s,
+    drivers: s.drivers.map((d, i) => {
+      if (d.duty === "offline" || locked.has(d.id)) return d;
+      const step = 0.00028 + (i % 3) * 0.00008;
+      const rad = ((d.heading + 12 + i * 7) * Math.PI) / 180;
+      return {
+        ...d,
+        loc: { lat: d.loc.lat + Math.sin(rad) * step, lng: d.loc.lng + Math.cos(rad) * step },
+        heading: (d.heading + 9 + i) % 360,
+      };
+    }),
+  };
+}
+
 export function animateTick(s: LiveSnapshot): LiveSnapshot {
   if (s.phase === "en_route_airport" || s.phase === "near_airport") {
     const progress = Math.min(0.98, (s.distanceKm > 0 ? 1 - s.distanceKm / 18 : 0.2) + 0.035);

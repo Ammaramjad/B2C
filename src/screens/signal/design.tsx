@@ -105,11 +105,26 @@ export function DemoDirector() {
     "Map switches to Jason · new ETA",
     "Arrive / wait / start trip",
   ];
+  const desks = [
+    ["Customer", "/", "Home, book, live, trips, wallet, loyalty, inbox, support"],
+    ["Driver", "/driver", "Duty, offer, job, OTP, earnings, docs, inbox"],
+    ["Ops", "/ops", "Queue, dispatch, airport, incident, preferred"],
+    ["Admin", "/admin/services", "Catalog, pricing, payments, CRM 360, i18n, audit"],
+  ];
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="kicker">Connected demo</div>
       <h1 className="display mt-2 text-5xl">Scenario ZF-82041</h1>
-      <p className="mt-3 text-[var(--ink-2)]">Sarah Chen · Airport pickup · BR156 · TPE T2 → Xinyi. Press Play in the header. Keep /live and /ops open in two windows to watch the same events.</p>
+      <p className="mt-3 text-[var(--ink-2)]">Sarah Chen · Airport pickup · BR156 · TPE T2 → Xinyi. Press Play in the header. Keep /live and /ops open in two windows to watch the same events. Toggle EN / 繁中 on every desk.</p>
+      <div className="mt-6 grid gap-2 md:grid-cols-2">
+        {desks.map(([t, h, d]) => (
+          <Link key={h} href={h} className="zf-panel p-4">
+            <div className="kicker">{t}</div>
+            <div className="font-semibold">{h}</div>
+            <p className="mt-1 text-sm text-[var(--ink-2)]">{d}</p>
+          </Link>
+        ))}
+      </div>
       <ol className="mt-6 space-y-2">
         {steps.map((s, i) => (
           <li key={s} className="zf-panel p-3">

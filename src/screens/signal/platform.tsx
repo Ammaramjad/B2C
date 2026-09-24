@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { extras, promos, services, vehicles } from "@/lib/catalog";
-import { passengers } from "@/lib/data";
-import { capacityScenario, defaultDispatchPolicy, defaultDynamicRules, simulateCancel, simulateQuote } from "@/lib/domain/policy";
+import { extras, promos, services } from "@/lib/catalog";
+import { drivers, passengers } from "@/lib/data";
+import { PartyStepper, SeatBagIcons, VehicleCard } from "@/components/signal/catalog-gui";
+import type { ExtraId, FareRow, ServiceType, Vehicle } from "@/lib/types";
+import { formatMetric, scorecardFromCatalog } from "@/lib/live/metrics";
+import { defaultDispatchPolicy, defaultDynamicRules, simulateCancel, simulateQuote } from "@/lib/domain/policy";
 import { cancelFee, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
@@ -11,7 +14,6 @@ import { deriveCounters } from "@/lib/domain/booking";
 import { financeTotals } from "@/lib/domain/payments";
 import { seedPaymentsFromBookings, seedWalletFromBookings } from "@/lib/domain/ledger";
 import { NOTIFY_TEMPLATES, previewNotification } from "@/lib/domain/notify";
-import type { ExtraId, ServiceType } from "@/lib/types";
 import type { PaymentState } from "@/lib/domain/payments";
 
 function Studio({ kicker, title, children }: { kicker: string; title: string; children: React.ReactNode }) {
@@ -41,77 +43,106 @@ export function CfgServices() {
   );
 }
 
+function emptyVehicle(): Vehicle {
+  return {
+    id: `class-${Date.now().toString(36)}`,
+    name: "New class",
+    nameZh: "新車款",
+    model: "Custom",
+    seats: 4,
+    luggage: 3,
+    base: 1580,
+    image: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=1200&q=80",
+    panoramic: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1600&q=80",
+  };
+}
+
 export function CfgVehicles() {
+  const { domain, upsertVehicle, deleteVehicle } = useStore();
+  const [edit, setEdit] = useState<Vehicle | null>(null);
   return (
     <Studio kicker="Fleet catalog" title="Vehicle classes">
-      <div className="mt-4 overflow-x-auto">
-        <table className="zf-table">
-          <thead>
-            <tr>
-              <th>Class</th>
-              <th>Seats</th>
-              <th>Bags</th>
-              <th>Base</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vehicles.map((v) => (
-              <tr key={v.id}>
-                <td>{v.name}</td>
-                <td>{v.seats}</td>
-                <td>{v.luggage}</td>
-                <td>NT${v.base}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <p className="mt-2 text-sm text-[var(--ink-2)]">Add, edit or delete a class. Photos and panoramic URLs stay on the customer booking cards.</p>
+      <button type="button" className="zf-btn mt-3" onClick={() => setEdit(emptyVehicle())}>Add class</button>
+      <div className="mt-4 grid gap-3">
+        {domain.catalogVehicles.map((v) => (
+          <div key={v.id} className="grid gap-2 md:grid-cols-[1fr_auto]">
+            <VehicleCard vehicle={v} price={v.base} />
+            <div className="flex gap-2 md:flex-col">
+              <button type="button" className="zf-btn ghost" onClick={() => setEdit(v)}>Edit</button>
+              <button type="button" className="zf-btn ghost" onClick={() => deleteVehicle(v.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
       </div>
+      {edit ? (
+        <form
+          className="zf-glass mt-5 grid gap-3 p-4 md:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            upsertVehicle(edit);
+            setEdit(null);
+          }}
+        >
+          <label className="zf-field"><span>Id</span><input value={edit.id} onChange={(e) => setEdit({ ...edit, id: e.target.value })} /></label>
+          <label className="zf-field"><span>Model</span><input value={edit.model} onChange={(e) => setEdit({ ...edit, model: e.target.value })} /></label>
+          <label className="zf-field"><span>Name EN</span><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></label>
+          <label className="zf-field"><span>Name 繁中</span><input value={edit.nameZh} onChange={(e) => setEdit({ ...edit, nameZh: e.target.value })} /></label>
+          <label className="zf-field"><span>Max pax</span><input type="number" value={edit.seats} onChange={(e) => setEdit({ ...edit, seats: Number(e.target.value) })} /></label>
+          <label className="zf-field"><span>Max bags</span><input type="number" value={edit.luggage} onChange={(e) => setEdit({ ...edit, luggage: Number(e.target.value) })} /></label>
+          <label className="zf-field"><span>Base NT$</span><input type="number" value={edit.base} onChange={(e) => setEdit({ ...edit, base: Number(e.target.value) })} /></label>
+          <label className="zf-field"><span>Photo URL</span><input value={edit.image ?? ""} onChange={(e) => setEdit({ ...edit, image: e.target.value })} /></label>
+          <label className="zf-field md:col-span-2"><span>Panoramic URL</span><input value={edit.panoramic ?? ""} onChange={(e) => setEdit({ ...edit, panoramic: e.target.value })} /></label>
+          <div className="md:col-span-2 flex gap-2">
+            <button type="submit" className="zf-btn">Save class</button>
+            <button type="button" className="zf-btn ghost" onClick={() => setEdit(null)}>Cancel</button>
+          </div>
+        </form>
+      ) : null}
     </Studio>
   );
 }
 
 export function CfgCapacity() {
+  const { domain, upsertVehicle } = useStore();
   const [pax, setPax] = useState(5);
   const [bags, setBags] = useState(4);
-  const rows = capacityScenario(pax, bags);
   return (
-    <Studio kicker="Capacity rule builder" title="Who can take this party">
-      <div className="mt-4 grid max-w-md grid-cols-2 gap-2">
-        <label className="zf-field">
-          <span>Passengers</span>
-          <input type="number" value={pax} onChange={(e) => setPax(Number(e.target.value))} />
-        </label>
-        <label className="zf-field">
-          <span>Bags</span>
-          <input type="number" value={bags} onChange={(e) => setBags(Number(e.target.value))} />
-        </label>
+    <Studio kicker="Capacity rule builder" title="Max pax and bags, as pictures">
+      <p className="mt-2 text-sm">Each class shows people and bag icons. Edit seats/bags here — booking uses the same matcher.</p>
+      <div className="mt-4 max-w-xl">
+        <PartyStepper pax={pax} bags={bags} setPax={setPax} setBags={setBags} paxLabel="Party passengers" bagLabel="Party bags" />
       </div>
-      <p className="mt-3 text-sm">Scenario {pax} pax / {bags} bags · same matcher as booking.</p>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Class</th>
-            <th>Max pax</th>
-            <th>Max bags</th>
-            <th>Eligible</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.klass}>
-              <td>{r.klass}</td>
-              <td>{r.seats}</td>
-              <td>{r.bags}</td>
-              <td>{r.eligible ? "Yes" : "No"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {domain.catalogVehicles.map((v) => {
+          const ok = pax <= v.seats && bags <= v.luggage;
+          return (
+            <div key={v.id} className={`zf-glass p-4 ${ok ? "" : "opacity-60"}`}>
+              <div className="flex items-center justify-between">
+                <b>{v.name}</b>
+                <span className={`zf-chip ${ok ? "ok" : "warn"}`}>{ok ? "Fits" : "Blocked"}</span>
+              </div>
+              <SeatBagIcons seats={v.seats} bags={v.luggage} size={18} />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="zf-field">
+                  <span>Max pax</span>
+                  <input type="number" value={v.seats} onChange={(e) => upsertVehicle({ ...v, seats: Number(e.target.value) })} />
+                </label>
+                <label className="zf-field">
+                  <span>Max bags</span>
+                  <input type="number" value={v.luggage} onChange={(e) => upsertVehicle({ ...v, luggage: Number(e.target.value) })} />
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </Studio>
   );
 }
 
 export function CfgPricing() {
+  const { domain, upsertFare, deleteFare } = useStore();
   const [service, setService] = useState<ServiceType>("airport_pickup");
   const [vehicle, setVehicle] = useState("mpv");
   const [when, setWhen] = useState("2026-09-23T16:40");
@@ -119,38 +150,90 @@ export function CfgPricing() {
   const [days, setDays] = useState(2);
   const [km, setKm] = useState(32);
   const [mins, setMins] = useState(45);
-  const extras = useMemo(() => ["meet"] as ExtraId[], []);
-  const checkout = useMemo(() => quote({ service, vehicle, when, hours, days, extras }), [service, vehicle, when, hours, days, extras]);
+  const extraIds = useMemo(() => ["meet"] as ExtraId[], []);
+  const checkout = useMemo(() => quote({ service, vehicle, when, hours, days, extras: extraIds }), [service, vehicle, when, hours, days, extraIds]);
   const shadow = useMemo(
-    () => simulateQuote({ service, vehicle, when, hours, days, extras, distanceKm: km, durationMin: mins, surge: true }),
-    [service, vehicle, when, hours, days, extras, km, mins],
+    () => simulateQuote({ service, vehicle, when, hours, days, extras: extraIds, distanceKm: km, durationMin: mins, surge: true }),
+    [service, vehicle, when, hours, days, extraIds, km, mins],
   );
   const differs = shadow.total !== checkout.total;
+  const [draft, setDraft] = useState<FareRow | null>(null);
+  const cards = domain.fareRows.filter((f) => f.service === service || f.service === "all");
   return (
-    <Studio kicker="Pricing studio" title="BASE / CURRENT / SHADOW / PRODUCTION">
-      <p className="mt-2 text-sm">Checkout uses quote(). Shadow distance/time/surge never apply silently.</p>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <div className="space-y-3">
-          <label className="zf-field">
-            <span>Service</span>
-            <select value={service} onChange={(e) => setService(e.target.value as ServiceType)}>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.en}</option>
-              ))}
-            </select>
-          </label>
+    <Studio kicker="Pricing studio" title="Pickup, MPV, panoramic fares">
+      <p className="mt-2 text-sm">Each card is a published fare. Add or delete rows. Checkout still uses quote() — shadow never applies silently.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {services.map((s) => (
+          <button key={s.id} type="button" className={`zf-btn ${service === s.id ? "" : "ghost"}`} style={{ minHeight: 36 }} onClick={() => setService(s.id)}>
+            {s.en}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="zf-btn mt-3"
+        onClick={() => setDraft({ id: `FR-${Date.now()}`, service, vehicleId: vehicle, base: 1600, label: "New fare", labelZh: "新價格" })}
+      >
+        Add fare
+      </button>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {cards.map((f) => {
+          const v = domain.catalogVehicles.find((x) => x.id === f.vehicleId);
+          return (
+            <div key={f.id} className="zf-vcard" style={{ cursor: "default" }}>
+              <span className="zf-vcard-photo" style={{ backgroundImage: `url(${v?.panoramic ?? v?.image ?? ""})` }} />
+              <span className="zf-vcard-body">
+                <b>{f.label}</b>
+                <em>{v?.name ?? f.vehicleId} · {f.service}</em>
+                <strong className="zf-metric text-2xl">NT${f.base.toLocaleString()}</strong>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" className="zf-btn ghost" style={{ minHeight: 32 }} onClick={() => setDraft(f)}>Edit</button>
+                  <button type="button" className="zf-btn ghost" style={{ minHeight: 32 }} onClick={() => deleteFare(f.id)}>Delete</button>
+                </div>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {draft ? (
+        <form
+          className="zf-glass mt-4 grid gap-3 p-4 md:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            upsertFare(draft);
+            setDraft(null);
+          }}
+        >
+          <label className="zf-field"><span>Label</span><input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} /></label>
           <label className="zf-field">
             <span>Vehicle</span>
-            <select value={vehicle} onChange={(e) => setVehicle(e.target.value)}>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
+            <select value={draft.vehicleId} onChange={(e) => setDraft({ ...draft, vehicleId: e.target.value })}>
+              {domain.catalogVehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </label>
+          <label className="zf-field"><span>Base NT$</span><input type="number" value={draft.base} onChange={(e) => setDraft({ ...draft, base: Number(e.target.value) })} /></label>
           <label className="zf-field">
-            <span>Date / time</span>
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <span>Service</span>
+            <select value={draft.service} onChange={(e) => setDraft({ ...draft, service: e.target.value as FareRow["service"] })}>
+              <option value="all">all</option>
+              {services.map((s) => <option key={s.id} value={s.id}>{s.en}</option>)}
+            </select>
           </label>
+          <div className="md:col-span-2 flex gap-2">
+            <button type="submit" className="zf-btn">Save fare</button>
+            <button type="button" className="zf-btn ghost" onClick={() => setDraft(null)}>Cancel</button>
+          </div>
+        </form>
+      ) : null}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-3">
+          <label className="zf-field">
+            <span>Quote vehicle</span>
+            <select value={vehicle} onChange={(e) => setVehicle(e.target.value)}>
+              {domain.catalogVehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </label>
+          <label className="zf-field"><span>Date / time</span><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="zf-field"><span>Shadow km</span><input type="number" value={km} onChange={(e) => setKm(Number(e.target.value))} /></label>
             <label className="zf-field"><span>Shadow min</span><input type="number" value={mins} onChange={(e) => setMins(Number(e.target.value))} /></label>
@@ -160,18 +243,18 @@ export function CfgPricing() {
         </div>
         <div className="space-y-3" data-testid="quote-simulator">
           <div className="zf-panel p-4">
-            <div className="kicker">BASE / CURRENT checkout · quote()</div>
+            <div className="kicker">CURRENT checkout · quote()</div>
             <div className="zf-metric mt-2 text-4xl">NT${checkout.total.toLocaleString()}</div>
+            <ul className="zf-stream mt-2">
+              {checkout.items.filter((i) => i.amount).map((i) => (
+                <li key={i.label}>{i.label} · NT${i.amount.toLocaleString()}</li>
+              ))}
+            </ul>
           </div>
           <div className="zf-panel p-4">
             <div className="kicker">SHADOW · not applied</div>
             <div className="zf-metric mt-2 text-3xl">NT${shadow.total.toLocaleString()}</div>
             {differs ? <p className="mt-2 text-sm text-[var(--warn)]" data-testid="shadow-diff">Simulation differs from checkout policy by NT${(shadow.total - checkout.total).toLocaleString()}.</p> : null}
-          </div>
-          <div className="zf-panel p-4">
-            <div className="kicker">PRODUCTION published</div>
-            <div className="text-sm">Same as CURRENT until a server fare table is configured. Production persist throws.</div>
-            <div className="zf-metric mt-2 text-2xl">NT${checkout.total.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -295,134 +378,133 @@ export function CfgDispatch() {
 }
 
 export function CfgNotify() {
-  const { domain, queueNotify } = useStore();
+  const { domain, queueNotify, locale } = useStore();
   const [event, setEvent] = useState(NOTIFY_TEMPLATES[0].event);
-  const preview = previewNotification(event, "en");
+  const preview = previewNotification(event, locale);
+  const channels = ["in_app", "push", "sms", "email"] as const;
   return (
-    <Studio kicker="Notification center" title="Templates · generated, never claimed delivered">
-      <p className="mt-2 text-sm">Demo preview only. SMS/email/push is not delivered unless a provider confirms it.</p>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Event</th>
-            <th>Audience</th>
-            <th>Channel</th>
-          </tr>
-        </thead>
-        <tbody>
-          {NOTIFY_TEMPLATES.map((t) => (
-            <tr key={t.event}>
-              <td>{t.event}</td>
-              <td>{t.audience}</td>
-              <td>{t.channel}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Studio kicker="Notification center" title="Phone-style previews">
+      <p className="mt-2 text-sm">Generated only. Nothing is marked delivered unless a provider confirms it.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {NOTIFY_TEMPLATES.map((t) => (
+          <button key={t.event} type="button" onClick={() => setEvent(t.event)} className={`zf-phone text-left ${event === t.event ? "outline outline-2 outline-[var(--signal)]" : ""}`}>
+            <div className="kicker">{t.channel} · {t.audience}</div>
+            <b className="mt-2 block">{t.event}</b>
+            <p className="mt-2 text-sm text-[var(--ink-2)]">{locale === "zh" ? t.zh : t.en}</p>
+          </button>
+        ))}
+      </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <select value={event} onChange={(e) => setEvent(e.target.value)} aria-label="Template event">
-          {NOTIFY_TEMPLATES.map((t) => (
-            <option key={t.event} value={t.event}>{t.event}</option>
-          ))}
-        </select>
+        {channels.map((c) => (
+          <span key={c} className="zf-chip">{c} · {domain.notifications.filter((n) => n.channel === c).length}</span>
+        ))}
         <button type="button" className="zf-btn" onClick={() => queueNotify(event)}>Generate preview</button>
       </div>
       {preview ? (
-        <div className="zf-panel mt-3 p-3 text-sm">
-          Status {preview.status} · {preview.body} · {preview.note}
+        <div className="zf-phone mt-4 max-w-md">
+          <div className="kicker">Preview · {preview.status}</div>
+          <p className="mt-2">{preview.body}</p>
+          <p className="mt-1 text-xs text-[var(--mute)]">{preview.note}</p>
         </div>
       ) : null}
-      <div className="kicker mt-6">Domain log</div>
-      <ul className="zf-stream mt-2">
-        {domain.notifications.slice(0, 12).map((n) => (
-          <li key={n.id}>{n.at.slice(11, 19)} · {n.event} · {n.status}{n.providerConfirmed ? " · provider" : " · not delivered"}</li>
+      <div className="mt-6 grid gap-2">
+        {domain.notifications.slice(0, 8).map((n) => (
+          <div key={n.id} className="zf-glass flex items-center justify-between px-4 py-3 text-sm">
+            <span>{n.at.slice(11, 19)} · {n.event}</span>
+            <span className="zf-chip">{n.status}</span>
+          </div>
         ))}
-      </ul>
+      </div>
     </Studio>
   );
 }
 
 export function CfgI18n() {
-  const { domain } = useStore();
+  const { domain, setTranslationStatus } = useStore();
   const [filter, setFilter] = useState<string>("all");
   const rows = domain.translations.filter((t) => filter === "all" || t.status === filter);
   return (
     <Studio kicker="Translation desk" title="Side-by-side proofing">
       <div className="mt-3 flex flex-wrap gap-2">
-        {["all", "missing", "draft", "reviewed", "approved", "MISSING", "DRAFT", "NEEDS REVIEW", "APPROVED"].map((s) => (
+        {["all", "missing", "draft", "reviewed", "approved"].map((s) => (
           <button key={s} type="button" className={`zf-btn ${filter === s ? "" : "ghost"}`} style={{ minHeight: 32 }} onClick={() => setFilter(s)}>
             {s}
           </button>
         ))}
       </div>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>EN</th>
-            <th>繁中</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((t) => (
-            <tr key={t.key}>
-              <td>{t.namespace}.{t.key}</td>
-              <td>{t.en || "—"}</td>
-              <td>{t.zh || "—"}</td>
-              <td>{t.status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="mt-4 grid gap-3">
+        {rows.map((t) => (
+          <div key={t.key} className="zf-glass p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="kicker">{t.namespace}.{t.key}</span>
+              <span className="zf-chip">{t.status}</span>
+            </div>
+            <div className="zf-i18n mt-3">
+              <div>
+                <div className="kicker">EN</div>
+                <p className="mt-1 text-lg">{t.en || "— missing —"}</p>
+              </div>
+              <div>
+                <div className="kicker">繁中</div>
+                <p className="mt-1 text-lg">{t.zh || "— 缺漏 —"}</p>
+              </div>
+            </div>
+            {t.status !== "approved" && t.status !== "APPROVED" ? (
+              <div className="mt-3 flex gap-2">
+                <button type="button" className="zf-btn ghost" onClick={() => setTranslationStatus(t.key, "reviewed")}>Mark reviewed</button>
+                <button type="button" className="zf-btn" onClick={() => setTranslationStatus(t.key, "approved")}>Approve</button>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </Studio>
   );
 }
 
 export function CfgIntegrations() {
+  const rows = [
+    ["Map tiles", "OSM / Esri", 1, "unconfigured vendor"],
+    ["GPS / route / ETA", "simulationProvider", 0.4, "throws"],
+    ["Flights", "simulationFlightProvider", 0.35, "throws"],
+    ["Payments", "simulationPaymentProvider", 0.3, "throws · no card secrets"],
+    ["Persistence", "demo DomainState", 0.5, "throws"],
+  ] as const;
   return (
     <Studio kicker="Providers" title="Simulation vs production">
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Concern</th>
-            <th>Active</th>
-            <th>Production</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            ["Map tiles", "OSM / Esri", "unconfigured vendor"],
-            ["GPS / route / ETA / traffic", "simulationProvider", "throws"],
-            ["Flights", "simulationFlightProvider", "throws"],
-            ["Payments", "simulationPaymentProvider", "throws · no card secrets"],
-            ["Persistence", "demo DomainState", "throws"],
-          ].map((r) => (
-            <tr key={r[0]}>
-              <td>{r[0]}</td>
-              <td>{r[1]}</td>
-              <td>{r[2]}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {rows.map(([name, active, p, prod]) => (
+          <div key={name} className="zf-glass p-4">
+            <b>{name}</b>
+            <p className="mt-1 text-sm">{active}</p>
+            <div className="zf-bar mt-3"><i style={{ width: `${p * 100}%` }} /></div>
+            <p className="mt-2 text-xs text-[var(--mute)]">Production: {prod}</p>
+          </div>
+        ))}
+      </div>
     </Studio>
   );
 }
 
 export function CfgRoles() {
+  const tiles = [
+    ["passenger", "Book / live / share", "/go", 0.9],
+    ["driver", "Duty / offer / job", "/driver", 0.75],
+    ["ops", "Command / preferred", "/ops", 0.8],
+    ["admin", "Studios / finance", "/admin/vehicles", 0.7],
+  ] as const;
   return (
-    <Studio kicker="Access" title="Roles / flags — local demo switch only">
-      <p className="mt-2 text-sm">Production authentication is not configured. This table documents surfaces. It does not authorize anything.</p>
-      <table className="zf-table mt-4">
-        <tbody>
-          <tr><td>passenger</td><td>book / live / share / trips</td></tr>
-          <tr><td>driver</td><td>duty / offer / job</td></tr>
-          <tr><td>ops</td><td>command / preferred queue</td></tr>
-          <tr><td>admin</td><td>studios / finance</td></tr>
-        </tbody>
-      </table>
-      <p className="mt-3 text-sm text-[var(--warn)]">Unavailable: SSO, RBAC persist, session tokens. productionPersist throws.</p>
+    <Studio kicker="Access" title="Role surfaces">
+      <p className="mt-2 text-sm">Demo switch only. Production auth is not configured.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {tiles.map(([role, copy, href, p]) => (
+          <a key={role} href={href} className="zf-glass block p-4">
+            <div className="kicker">{role}</div>
+            <b className="mt-1 block text-xl">{copy}</b>
+            <div className="zf-bar mt-3"><i style={{ width: `${p * 100}%` }} /></div>
+          </a>
+        ))}
+      </div>
     </Studio>
   );
 }
@@ -620,19 +702,41 @@ export function FinRecon() {
   const { bookings, domain } = useStore();
   const pays = seedPaymentsFromBookings(bookings, domain.payments);
   const totals = financeTotals(pays, domain.wallet);
+  const simProvider = totals.captured;
   return (
-    <Studio kicker="Reconciliation" title="Internal ledger vs unconfigured provider">
+    <Studio kicker="Reconciliation" title="Internal ledger vs simulation feed">
+      <p className="mt-2 text-sm">Simulation feed mirrors the internal captured total. Production PSP remains unconfigured — this is not a provider confirmation.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="zf-panel p-3"><div className="kicker">Internal captured</div><div className="zf-metric">NT${totals.captured.toLocaleString()}</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Provider</div><div className="text-sm">Not enough data — production PSP unconfigured</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="text-sm">Unknown until a provider feed exists</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Simulation feed</div><div className="zf-metric">NT${simProvider.toLocaleString()}</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="zf-metric">NT$0</div></div>
       </div>
+      <table className="zf-table mt-4">
+        <thead>
+          <tr>
+            <th>Booking</th>
+            <th>Internal</th>
+            <th>Simulation</th>
+            <th>Match</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pays.slice(0, 12).map((p) => (
+            <tr key={p.id}>
+              <td>{p.bookingId}</td>
+              <td>{p.amount}</td>
+              <td>{p.amount}</td>
+              <td>yes · demo</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Studio>
   );
 }
 
 export function Crm360() {
-  const { bookings, domain, addNote } = useStore();
+  const { bookings, domain, addNote, tickets } = useStore();
   const [id, setId] = useState(passengers[0].id);
   const [tab, setTab] = useState("OVERVIEW");
   const [note, setNote] = useState("");
@@ -682,14 +786,119 @@ export function Crm360() {
         </table>
       ) : null}
       {tab === "PREFERRED DRIVERS" ? (
-        <p className="mt-4 text-sm">
-          Preferred cases: {domain.preferredCases.filter((c) => c.customerId === p.id).length || "none on domain"}. Company-mediated only — /ops/preferred.
-        </p>
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>Driver</th>
+              <th>Rides</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {domain.preferredCases.filter((c) => c.customerId === p.id).map((c) => (
+              <tr key={c.id}>
+                <td>{c.id}</td>
+                <td>{c.driverId}</td>
+                <td>{c.ridesTogether}</td>
+                <td>{c.status}</td>
+              </tr>
+            ))}
+            {domain.preferredCases.filter((c) => c.customerId === p.id).length === 0 ? (
+              <tr><td colSpan={4}>none on domain · company-mediated only</td></tr>
+            ) : null}
+          </tbody>
+        </table>
       ) : null}
       {tab === "PAYMENTS" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Status</th>
+              <th>Amount</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {seedPaymentsFromBookings(mine, domain.payments.filter((n) => mine.some((b) => b.id === n.bookingId))).map((n) => (
+              <tr key={n.id}>
+                <td>{n.id}</td>
+                <td>{n.status}</td>
+                <td>{n.amount}</td>
+                <td>{n.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "WALLET" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Tx</th>
+              <th>Type</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {seedWalletFromBookings(mine, domain.wallet.filter((w) => w.passengerId === p.id)).map((w) => (
+              <tr key={w.id}>
+                <td>{w.id}</td>
+                <td>{w.type}</td>
+                <td>{w.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "LOYALTY" ? (
+        <div className="zf-panel mt-4 p-4 text-sm">
+          Points {p.points} · RFM {p.rfm} · {p.trips} catalog trips · spend NT${p.spendTwd.toLocaleString()}
+        </div>
+      ) : null}
+      {tab === "REFERRALS" ? (
+        <table className="zf-table mt-4">
+          <tbody>
+            <tr><td>Code</td><td>ZOUDIAN-{p.id.toUpperCase()}</td></tr>
+            <tr><td>Rule</td><td>NT$100 / NT$100 after paid trip</td></tr>
+            <tr><td>Channel</td><td>customer → customer · company settle</td></tr>
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "SUPPORT" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Category</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.filter((t) => t.passengerId === p.id).map((t) => (
+              <tr key={t.id}>
+                <td>{t.id}</td>
+                <td>{t.category}</td>
+                <td>{t.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "CONSENT" ? (
+        <table className="zf-table mt-4">
+          <tbody>
+            <tr><td>Share trip</td><td>opt-in per token · expires</td></tr>
+            <tr><td>Marketing</td><td>demo · not delivered</td></tr>
+            <tr><td>Location on live map</td><td>active while booking bound</td></tr>
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "AUDIT" ? (
         <ul className="zf-stream mt-4">
-          {domain.payments.filter((n) => mine.some((b) => b.id === n.bookingId)).map((n) => (
-            <li key={n.id}>{n.id} · {n.status} · {n.amount} · {n.source}</li>
+          {domain.audit.filter((a) => a.entity.includes(p.id) || a.detail.includes(p.name) || mine.some((b) => a.entity === b.id)).map((a) => (
+            <li key={a.id}>{a.at.slice(0, 16)} · {a.action} · {a.detail}</li>
           ))}
         </ul>
       ) : null}
@@ -713,55 +922,37 @@ export function Crm360() {
 
 export function CrmGrowth() {
   return (
-    <Studio kicker="Referral + campaigns" title="Channels and conversion rules">
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Path</th>
-            <th>Rule</th>
-            <th>Fraud</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Customer → customer</td><td>NT$100 / NT$100 after paid trip</td><td>device cluster review</td></tr>
-          <tr><td>Driver → customer</td><td>Company desk only</td><td>no private payout</td></tr>
-          <tr><td>B2B → customer</td><td>Company desk</td><td>invoice match</td></tr>
-        </tbody>
-      </table>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Promo</th>
-            <th>Type</th>
-            <th>Copy</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(promos).map(([k, v]) => (
-            <tr key={k}>
-              <td>{k}</td>
-              <td>{v.type}</td>
-              <td>{v.en}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <table className="zf-table mt-4">
-        <thead>
-          <tr>
-            <th>Extra</th>
-            <th>Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {extras.map((e) => (
-            <tr key={e.id}>
-              <td>{e.name}</td>
-              <td>{e.price}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Studio kicker="Referral + campaigns" title="Growth board">
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {[
+          ["Customer → customer", "NT$100 / NT$100", 0.72],
+          ["Driver → customer", "Company desk only", 0.28],
+          ["B2B → customer", "Invoice match", 0.41],
+        ].map(([t, r, p]) => (
+          <div key={t} className="zf-glass p-4">
+            <b>{t}</b>
+            <p className="mt-1 text-sm">{r}</p>
+            <div className="zf-bar mt-3"><i style={{ width: `${Number(p) * 100}%` }} /></div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {Object.entries(promos).map(([k, v]) => (
+          <div key={k} className="zf-glass p-4">
+            <div className="kicker">{v.type}</div>
+            <b>{k}</b>
+            <p className="mt-1 text-sm">{v.en}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {extras.map((e) => (
+          <div key={e.id} className="zf-glass p-4">
+            <b>{e.name}</b>
+            <div className="zf-metric mt-1 text-2xl">NT${e.price}</div>
+          </div>
+        ))}
+      </div>
     </Studio>
   );
 }
@@ -804,6 +995,16 @@ export function CfgLoyalty() {
   );
 }
 
+function MetricTile({ k, v, p }: { k: string; v: string; p: number }) {
+  return (
+    <div className="zf-glass p-4">
+      <div className="kicker">{k}</div>
+      <div className="zf-metric mt-1 text-3xl">{v}</div>
+      <div className="zf-bar mt-3"><i style={{ width: `${Math.min(100, p * 100)}%` }} /></div>
+    </div>
+  );
+}
+
 export function RoleAnalytics() {
   const { bookings } = useStore();
   const { live } = useLive();
@@ -814,8 +1015,10 @@ export function RoleAnalytics() {
   const repeat = new Set(bookings.map((b) => b.passengerId)).size;
   const c = deriveCounters(live, bookings);
   const series = bookings.map((b, i) => `${i * 28},${80 - Math.min(70, b.price / 120)}`).join(" ");
+  const comm = bookings.reduce((s, b) => s + b.commission, 0);
+  const rfm = Object.entries(passengers.reduce<Record<string, number>>((m, p) => ({ ...m, [p.rfm]: (m[p.rfm] ?? 0) + 1 }), {}));
   return (
-    <Studio kicker="Analytics workspaces" title="Role views from ledger + live">
+    <Studio kicker="Analytics workspaces" title="Graphical role views">
       <div className="mt-3 flex flex-wrap gap-2">
         {["executive", "operations", "driver", "growth", "finance", "customer"].map((r) => (
           <button key={r} type="button" className={`zf-btn ${role === r ? "" : "ghost"}`} style={{ minHeight: 32 }} onClick={() => setRole(r)}>
@@ -828,56 +1031,61 @@ export function RoleAnalytics() {
           <svg viewBox="0 0 320 90" className="zf-spark mt-4">
             <polyline fill="none" stroke="var(--signal)" strokeWidth="2" points={series} />
           </svg>
-          <table className="zf-table mt-3">
-            <tbody>
-              <tr><td>GMV ex-cancel</td><td>{gmv}</td></tr>
-              <tr><td>Bookings</td><td>{bookings.length}</td></tr>
-              <tr><td>AOV</td><td>{aov}</td></tr>
-              <tr><td>Completed</td><td>{completed}</td></tr>
-              <tr><td>Distinct customers</td><td>{repeat}</td></tr>
-            </tbody>
-          </table>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <MetricTile k="GMV" v={`NT$${gmv.toLocaleString()}`} p={0.86} />
+            <MetricTile k="AOV" v={`NT$${aov.toLocaleString()}`} p={0.54} />
+            <MetricTile k="Completed" v={String(completed)} p={completed / Math.max(1, bookings.length)} />
+            <MetricTile k="Bookings" v={String(bookings.length)} p={0.7} />
+            <MetricTile k="Customers" v={String(repeat)} p={0.48} />
+          </div>
         </>
       ) : null}
       {role === "operations" ? (
-        <table className="zf-table mt-4">
-          <tbody>
-            <tr><td>Available drivers</td><td>{c.available}</td></tr>
-            <tr><td>Busy</td><td>{c.busy}</td></tr>
-            <tr><td>Unassigned (derived)</td><td>{c.unassigned}</td></tr>
-            <tr><td>Incidents on tape</td><td>{c.incidents}</td></tr>
-            <tr><td>Time-to-assign</td><td>Not enough data</td></tr>
-          </tbody>
-        </table>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <MetricTile k="Available" v={String(c.available)} p={c.available / 10} />
+          <MetricTile k="Busy" v={String(c.busy)} p={c.busy / 10} />
+          <MetricTile k="Unassigned" v={String(c.unassigned)} p={c.unassigned / 8} />
+          <MetricTile k="Incidents" v={String(c.incidents)} p={c.incidents / 5} />
+        </div>
       ) : null}
       {role === "driver" ? (
-        <p className="mt-4 text-sm">Driver distributions use scorecards — no hardcoded Kenji week count.</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {drivers.map((d) => {
+            const card = scorecardFromCatalog(d, bookings, live.counters.incidents);
+            return (
+              <div key={d.id} className="zf-glass p-4">
+                <b>{d.name}</b>
+                <p className="text-sm text-[var(--mute)]">{d.vehicle}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div><div className="kicker">Rides</div><div className="zf-metric">{formatMetric(card.totalRides)}</div></div>
+                  <div><div className="kicker">Accept</div><div className="zf-metric">{formatMetric(card.acceptanceRate, "pct")}</div></div>
+                  <div><div className="kicker">On-time</div><div className="zf-metric">{formatMetric(card.onTimePickups)}</div></div>
+                </div>
+                <div className="zf-bar mt-3"><i style={{ width: `${(card.acceptanceRate ?? 0) * 100}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
       {role === "growth" ? (
-        <table className="zf-table mt-4">
-          <tbody>
-            {Object.keys(promos).map((k) => (
-              <tr key={k}><td>{k}</td><td>active catalog</td></tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {Object.keys(promos).map((k, i) => (
+            <MetricTile key={k} k="Promo" v={k} p={0.55 + i * 0.12} />
+          ))}
+        </div>
       ) : null}
       {role === "finance" ? (
-        <table className="zf-table mt-4">
-          <tbody>
-            <tr><td>Commission field sum</td><td>{bookings.reduce((s, b) => s + b.commission, 0)}</td></tr>
-            <tr><td>Cancelled rows</td><td>{bookings.filter((b) => b.status === "cancelled").length}</td></tr>
-          </tbody>
-        </table>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <MetricTile k="Commission" v={`NT$${comm.toLocaleString()}`} p={0.62} />
+          <MetricTile k="Cancelled" v={String(bookings.filter((b) => b.status === "cancelled").length)} p={0.18} />
+        </div>
       ) : null}
       {role === "customer" ? (
-        <table className="zf-table mt-4">
-          <tbody>
-            {Object.entries(passengers.reduce<Record<string, number>>((m, p) => ({ ...m, [p.rfm]: (m[p.rfm] ?? 0) + 1 }), {})).map(([k, v]) => (
-              <tr key={k}><td>{k}</td><td>{v}</td></tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {rfm.map(([k, v]) => (
+            <MetricTile key={k} k={k} v={String(v)} p={v / passengers.length} />
+          ))}
+        </div>
       ) : null}
     </Studio>
   );

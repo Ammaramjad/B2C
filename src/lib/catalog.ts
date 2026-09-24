@@ -17,12 +17,12 @@ export const services: { id: ServiceType; en: string; zh: string; formula: strin
 ];
 
 export const vehicles: Vehicle[] = [
-  { id: "sedan", name: "Sedan", nameZh: "舒適轎車", model: "Toyota Camry", seats: 3, luggage: 3, base: 1280, meet: true },
-  { id: "premium", name: "Premium", nameZh: "豪華轎車", model: "Mercedes E-Class", seats: 3, luggage: 3, base: 2680, meet: true },
-  { id: "suv", name: "SUV", nameZh: "休旅車", model: "RAV4 / CR-V", seats: 4, luggage: 4, base: 1680, meet: true },
-  { id: "mpv", name: "MPV", nameZh: "商務車", model: "Toyota Alphard", seats: 6, luggage: 6, base: 2280, meet: true },
-  { id: "van", name: "Van", nameZh: "九人座廂型車", model: "HiAce", seats: 8, luggage: 8, base: 2480, wheel: true },
-  { id: "shuttle", name: "Shuttle", nameZh: "共享接駁", model: "Shared", seats: 10, luggage: 1, base: 380 },
+  { id: "sedan", name: "Sedan", nameZh: "舒適轎車", model: "Toyota Camry", seats: 3, luggage: 3, base: 1280, meet: true, image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1600&q=80" },
+  { id: "premium", name: "Premium", nameZh: "豪華轎車", model: "Mercedes E-Class", seats: 3, luggage: 3, base: 2680, meet: true, image: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=1600&q=80" },
+  { id: "suv", name: "SUV", nameZh: "休旅車", model: "RAV4 / CR-V", seats: 4, luggage: 4, base: 1680, meet: true, image: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1600&q=80" },
+  { id: "mpv", name: "MPV", nameZh: "商務車", model: "Toyota Alphard", seats: 6, luggage: 6, base: 2280, meet: true, image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1469289759076-d148ef7ac1a9?w=1600&q=80" },
+  { id: "van", name: "Van", nameZh: "九人座廂型車", model: "HiAce", seats: 8, luggage: 8, base: 2480, wheel: true, image: "https://images.unsplash.com/photo-1527786356703-4b100097af00?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1464219789935-c2d9d9aba644?w=1600&q=80" },
+  { id: "shuttle", name: "Shuttle", nameZh: "共享接駁", model: "Shared", seats: 10, luggage: 1, base: 380, image: "https://images.unsplash.com/photo-1544620341-11cb2cd7c323?w=1200&q=80", panoramic: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=1600&q=80" },
 ];
 
 export const taxis: Taxi[] = [

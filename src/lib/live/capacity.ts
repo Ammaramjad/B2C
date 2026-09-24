@@ -1,11 +1,4 @@
-const CLASSES: Record<string, { seats: number; bags: number; id: string; name: string }> = {
-  sedan: { seats: 3, bags: 3, id: "sedan", name: "Sedan" },
-  premium: { seats: 3, bags: 3, id: "premium", name: "Premium" },
-  suv: { seats: 4, bags: 4, id: "suv", name: "SUV" },
-  mpv: { seats: 6, bags: 6, id: "mpv", name: "MPV" },
-  van: { seats: 8, bags: 8, id: "van", name: "Van" },
-  shuttle: { seats: 10, bags: 1, id: "shuttle", name: "Shuttle" },
-};
+import { listVehicles } from "../catalog-runtime.ts";
 
 const klassToId: Record<string, string> = {
   Sedan: "sedan",
@@ -16,9 +9,18 @@ const klassToId: Record<string, string> = {
   Shuttle: "shuttle",
 };
 
+function classes() {
+  const map: Record<string, { seats: number; bags: number; id: string; name: string }> = {};
+  for (const v of listVehicles()) {
+    map[v.id] = { seats: v.seats, bags: v.luggage, id: v.id, name: v.name };
+  }
+  return map;
+}
+
 export function capacityFor(klass: string) {
   const id = klassToId[klass] ?? klass.toLowerCase();
-  return CLASSES[id] ?? CLASSES.sedan;
+  const all = classes();
+  return all[id] ?? Object.values(all)[0] ?? { seats: 3, bags: 3, id: "sedan", name: "Sedan" };
 }
 
 export function vehicleFits(klass: string, pax: number, bags: number) {
@@ -27,7 +29,7 @@ export function vehicleFits(klass: string, pax: number, bags: number) {
 }
 
 export function recommendFor(pax: number, bags: number) {
-  return Object.values(CLASSES)
+  return Object.values(classes())
     .filter((v) => v.seats >= pax && v.bags >= bags && v.id !== "shuttle")
     .sort((a, b) => a.seats - b.seats)
     .map((v) => v.name);

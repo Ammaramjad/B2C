@@ -370,6 +370,16 @@ export function PreferredQueue() {
   const [filter, setFilter] = useState<string>("all");
   const david = live.drivers[0];
   const st = live.preferred?.status;
+  const stages = [
+    ["pending", "Pending"],
+    ["under_review", "Under review"],
+    ["validated", "Validated"],
+    ["company_offered", "Company offered"],
+    ["driver_offered", "Driver offered"],
+    ["confirmed", "Confirmed"],
+    ["rejected", "Rejected"],
+    ["cancelled", "Cancelled"],
+  ];
   async function companyValidate() {
     const res = await fetch("/api/preferred/validate", {
       method: "POST",
@@ -387,33 +397,44 @@ export function PreferredQueue() {
     else rejectPreferred();
   }
   return (
-    <div className="grid min-h-[calc(100vh-96px)] lg:grid-cols-[1fr_420px]">
+    <div className="grid min-h-[calc(100vh-96px)] lg:grid-cols-[1fr_440px]">
       <MapMount mode="night" height="100%" />
-      <aside className="space-y-3 overflow-auto p-4">
-        <h1 className="display text-3xl">Preferred request queue</h1>
-        <p className="text-sm">Company mediation only. Passenger cannot issue a commercial offer.</p>
+      <aside className="space-y-4 overflow-auto p-5">
+        <div>
+          <div className="kicker">Operations</div>
+          <h1 className="display mt-2 text-3xl">Preferred request queue</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink-2)]">
+            Company mediation only. A passenger cannot issue a commercial offer. Zoufeng contacts the driver.
+          </p>
+        </div>
         {live.preferred ? (
-          <div className="zf-panel p-3 text-sm">
-            <div className="kicker">{live.preferred.id} · {st}</div>
-            <div>{live.preferred.customer} → {david.name}</div>
+          <div className="zf-panel space-y-2 p-4 text-[15px]">
+            <div className="kicker">{live.preferred.id} · {st?.replaceAll("_", " ")}</div>
+            <div className="text-lg font-semibold">{live.preferred.customer} → {david.name}</div>
             <div>{david.ridesWithSarah} rides together · {live.preferred.service} · {david.klass}</div>
             <div>Premium {live.preferred.premiumPct}% · {live.preferred.schedule}</div>
-            <div>Eligibility: {david.state} · fleet {david.fleet}</div>
+            <div>Eligibility: {david.state.replaceAll("_", " ")} · fleet {david.fleet}</div>
+            <div>{david.vehicle} · {david.plate} · {david.rating} ★ · {Math.round(david.onTime * 100)}% on time</div>
           </div>
         ) : (
-          <p className="text-sm text-[var(--mute)]">No open preferred request.</p>
+          <div className="zf-panel p-4 text-[15px] text-[var(--ink-2)]">
+            No open preferred request. Ask the passenger to request a previous driver, then this queue fills.
+          </div>
         )}
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          {["all", "pending", "under_review", "validated", "company_offered", "driver_offered", "confirmed", "rejected", "cancelled"].map((s) => (
-            <button key={s} type="button" className={filter === s ? "text-[var(--signal)]" : "text-[var(--mute)]"} onClick={() => setFilter(s)}>
-              {s}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={`zf-chip ${filter === "all" ? "live" : ""}`} onClick={() => setFilter("all")}>
+            All
+          </button>
+          {stages.map(([id, label]) => (
+            <button key={id} type="button" className={`zf-chip ${filter === id ? "live" : ""}`} onClick={() => setFilter(id)}>
+              {label}
             </button>
           ))}
         </div>
-        {filter !== "all" && st !== filter ? <p className="text-sm text-[var(--mute)]">No cases in {filter}.</p> : null}
+        {filter !== "all" && st !== filter ? <p className="text-[15px] text-[var(--mute)]">No cases in {filter.replaceAll("_", " ")}.</p> : null}
         {st === "pending" || st === "requested" ? (
           <button type="button" className="zf-btn wide" data-testid="preferred-validate" onClick={() => void companyValidate()}>
-            Approve + validate
+            Approve and validate
           </button>
         ) : null}
         {st === "under_review" || st === "validating" || st === "validated" ? (
@@ -424,16 +445,18 @@ export function PreferredQueue() {
         {st === "pending" || st === "under_review" || st === "validated" || st === "requested" || st === "validating" ? (
           <>
             <button type="button" className="zf-btn ghost wide" data-testid="preferred-reject" onClick={rejectPreferred}>
-              Decline / alternative
+              Decline or send alternative
             </button>
             <button type="button" className="zf-btn ghost wide" data-testid="preferred-cancel" onClick={cancelPreferred}>
               Cancel request
             </button>
           </>
         ) : null}
-        {st === "company_offered" || st === "driver_offered" || st === "offered" ? <p className="text-sm">Official offer is on the driver offer screen.</p> : null}
+        {st === "company_offered" || st === "driver_offered" || st === "offered" ? (
+          <p className="text-[15px]">The official offer is on the driver offer screen.</p>
+        ) : null}
         {st === "confirmed" ? <p className="font-semibold">{live.customerNotice}</p> : null}
-        {st === "rejected" || st === "cancelled" ? <p className="text-sm">{live.customerNotice}</p> : null}
+        {st === "rejected" || st === "cancelled" ? <p className="text-[15px]">{live.customerNotice}</p> : null}
       </aside>
     </div>
   );
