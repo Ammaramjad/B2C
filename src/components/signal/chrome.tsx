@@ -169,12 +169,12 @@ export function PassengerChrome({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--mist)_94%,transparent)] px-5 py-3 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="zf-pin" style={{ background: "var(--signal)", width: 18, height: 18 }} />
+            <span className="zf-mark">Z</span>
             <b className="text-lg tracking-tight">ZOUFENG</b>
           </Link>
           <nav className="hidden items-center gap-6 text-[17px] font-medium md:flex">
             {tabs.map(([h, l]) => (
-              <Link key={h} href={h} className={path === h || (h !== "/" && path.startsWith(h)) ? "text-[var(--signal)]" : "text-[var(--ink-2)]"}>
+              <Link key={h} href={h} className={path === h || (h !== "/" && path.startsWith(h)) ? "text-[var(--info)]" : "text-[var(--ink-2)]"}>
                 {l}
               </Link>
             ))}
@@ -311,11 +311,11 @@ export function OpsChrome({ children }: { children: React.ReactNode }) {
       <HtmlLang />
       <aside className="border-r border-[var(--line)] bg-[var(--paper)]">
         <Link href="/ops" className="block px-4 py-5">
-          <span className="zf-pin" style={{ background: "var(--signal)", width: 16, height: 16 }} />
+          <span className="zf-mark">Z</span>
           <div className="mt-2 text-[12px] font-semibold tracking-[0.08em]">ZF OPS</div>
         </Link>
         {rail.map(([h, l]) => (
-          <Link key={h} href={h} className={`mx-2 mb-1 block rounded-xl px-3 py-2.5 text-[13px] ${path === h ? "bg-[var(--mist)] text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+          <Link key={h} href={h} className={`mx-2 mb-1 block rounded-xl px-3 py-2.5 text-[13px] ${path === h ? "bg-[#eef4ff] text-[var(--info)]" : "text-[var(--mute)]"}`}>
             {l}
           </Link>
         ))}
@@ -380,7 +380,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
           ZF CONFIG
         </Link>
         {rail.map(([h, l]) => (
-          <Link key={h} href={h} className={`block px-3 py-2 text-[11px] ${path === h ? "text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+          <Link key={h} href={h} className={`block px-3 py-2 text-[11px] ${path === h ? "text-[var(--info)]" : "text-[var(--mute)]"}`}>
             {l}
           </Link>
         ))}
@@ -396,7 +396,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
         </header>
         <div className="flex gap-2 overflow-x-auto border-b border-[var(--line)] px-3 py-2 md:hidden">
           {rail.map(([h, l]) => (
-            <Link key={h} href={h} className={`shrink-0 text-[11px] ${path === h ? "text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+            <Link key={h} href={h} className={`shrink-0 text-[11px] ${path === h ? "text-[var(--info)]" : "text-[var(--mute)]"}`}>
               {l}
             </Link>
           ))}
@@ -407,37 +407,120 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
-function GuestChrome({ children }: { children: React.ReactNode }) {
-  const { L } = useCopy();
+function SiteChrome({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const { L, locale, setLocale } = useCopy();
+  const links = [
+    ["/", L("Home", "首頁")],
+    ["/go", L("Book", "預訂行程")],
+    ["/go?service=airport_pickup", L("Airport", "機場接送")],
+    ["/go?service=hourly", L("Charter", "包車旅遊")],
+    ["/go?service=instant", L("Corporate", "企業用車")],
+    ["/destinations", L("Explore", "探索台灣")],
+    ["/help", L("Help", "幫助中心")],
+  ];
   return (
-    <div className="min-h-screen bg-[#f4f1ea]">
+    <div className="zf-site" data-os="site">
       <HtmlLang />
-      <header className="sticky top-0 z-40 border-b border-[#ece6dc] bg-white/90 px-5 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3">
-          <Link href="/go" className="flex items-center gap-2">
-            <span className="zf-pin" style={{ background: "var(--signal)", width: 18, height: 18 }} />
-            <b className="text-lg">ZOUFENG</b>
-          </Link>
-          <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
-            <Link href="/go">{L("Book", "預訂")}</Link>
-            <Link href="/go/book">{L("Cars", "車款")}</Link>
-            <Link href="/trips">{L("My trips", "我的行程")}</Link>
-            <Link href="/help">{L("Help", "協助")}</Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <LocaleBar />
-            <Link href="/go/book" className="zf-btn" style={{ minHeight: 36 }}>{L("Start booking", "開始預訂")}</Link>
+      <header className="zf-site-nav">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="zf-mark">Z</span>
+          <span>
+            <b>ZOUFENG</b>
+            <div className="text-[11px] text-[#7a8594]">{L("Taiwan mobility", "台灣專業移動服務")}</div>
+          </span>
+        </Link>
+        <nav className="hidden lg:flex">
+          {links.map(([h, l]) => (
+            <Link key={h} href={h} className={path === h || (h !== "/" && h.startsWith("/go?") === false && path.startsWith(h.split("?")[0])) ? "on" : ""}>
+              {l}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex items-center gap-3 text-sm">
+          <div className="flex rounded-full border border-[#e6ebf2] bg-[#f3f6fb] p-1" data-testid="site-locale">
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              style={{ minHeight: 28, padding: "0 10px", border: 0, borderRadius: 999, background: locale === "en" ? "#2b7cff" : "transparent", color: locale === "en" ? "#fff" : "#4a5568", fontWeight: 600 }}
+              onClick={() => setLocale("en")}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              className={locale === "zh" ? "on" : ""}
+              style={{ minHeight: 28, padding: "0 10px", border: 0, borderRadius: 999, background: locale === "zh" ? "#2b7cff" : "transparent", color: locale === "zh" ? "#fff" : "#4a5568", fontWeight: 600 }}
+              onClick={() => setLocale("zh")}
+              data-testid="site-locale-zh"
+            >
+              繁中
+            </button>
           </div>
+          <Link href="/login" className="zf-btn" style={{ minHeight: 36, padding: "0 14px" }}>{L("Sign in", "登入")}</Link>
         </div>
       </header>
       <main>{children}</main>
+      <nav className="zf-site-dock" aria-label={L("Whole system", "完整系統")}>
+        <Link href="/" className={path === "/" ? "on" : ""}>{L("Customer", "旅客")}</Link>
+        <Link href="/fleet" className={path.startsWith("/fleet") ? "on" : ""}>{L("Drivers", "車隊名錄")}</Link>
+        <Link href="/driver">{L("Driver desk", "司機台")}</Link>
+        <Link href="/ops">{L("Ops", "調度")}</Link>
+        <Link href="/admin/services">{L("Admin", "後台")}</Link>
+        <Link href="/go">{L("Book", "預訂")}</Link>
+      </nav>
+      <footer className="zf-site-foot">
+        <div className="zf-site-foot-grid">
+          <div>
+            <div className="mb-3 flex items-center gap-2"><span className="zf-mark">Z</span><b>ZOUFENG</b></div>
+            <p>{L("Taiwan professional mobility. Company-dispatched cars only.", "台灣專業移動服務。僅公司派遣。")}</p>
+          </div>
+          <div>
+            <h4>{L("Travel", "旅遊項目")}</h4>
+            <Link href="/go?service=airport_pickup">{L("Airport", "機場接送")}</Link>
+            <Link href="/go?service=hourly">{L("Charter", "包車旅遊")}</Link>
+            <Link href="/destinations">{L("Explore", "探索台灣")}</Link>
+          </div>
+          <div>
+            <h4>{L("Company", "關於我們")}</h4>
+            <Link href="/fleet">{L("Fleet", "車隊介紹")}</Link>
+            <Link href="/help">{L("Help", "幫助中心")}</Link>
+            <Link href="/login">{L("Sign in", "登入")}</Link>
+          </div>
+          <div>
+            <h4>{L("Corporate", "企業合作")}</h4>
+            <Link href="/go?service=instant">{L("Corporate cars", "企業用車")}</Link>
+            <Link href="/admin/services">{L("Admin", "後台")}</Link>
+          </div>
+          <div>
+            <h4>{L("Support", "客戶支援")}</h4>
+            <Link href="/support">{L("Support desk", "客服中心")}</Link>
+            <Link href="/inbox">{L("Inbox", "收件匣")}</Link>
+          </div>
+        </div>
+        <div className="zf-site-legal">
+          <span>© 2026 ZOUFENG</span>
+          <span>{L("Privacy · Terms · Cookies", "隱私權 · 服務條款 · Cookie")}</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function GuestChrome({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen">
+      <HtmlLang />
+      {children}
     </div>
   );
 }
 
 export function SignalRoot({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const os = path.startsWith("/go")
+  const os = path === "/" || path.startsWith("/fleet") || path.startsWith("/destinations")
+    ? "site"
+    : path.startsWith("/go")
     ? "guest"
     : path.startsWith("/driver")
       ? "driver"
@@ -449,7 +532,8 @@ export function SignalRoot({ children }: { children: React.ReactNode }) {
             ? "system"
             : "passenger";
   return (
-    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" || os === "guest" ? "passenger" : os} className="min-h-screen">
+    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" || os === "guest" || os === "site" ? "passenger" : os} className="min-h-screen">
+      {os === "site" ? <SiteChrome>{children}</SiteChrome> : null}
       {os === "guest" ? <GuestChrome>{children}</GuestChrome> : null}
       {os === "passenger" ? <PassengerChrome>{children}</PassengerChrome> : null}
       {os === "driver" ? <DriverChrome>{children}</DriverChrome> : null}

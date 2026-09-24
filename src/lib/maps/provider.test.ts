@@ -20,4 +20,12 @@ describe("geo provider split", () => {
     await assert.rejects(() => productionProvider.geocode("TPE"), /not configured/);
     await assert.rejects(() => productionProvider.route(TPE_T1, TPE_T1), /not configured/);
   });
+
+  it("does not treat community routing as production GPS", async () => {
+    const p = resolveGeoProvider("community");
+    assert.equal(p.id, "community");
+    const traffic = await p.traffic();
+    assert.equal(traffic.source, "community");
+    assert.match(traffic.note, /no live traffic vendor/i);
+  });
 });

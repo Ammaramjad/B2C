@@ -10,8 +10,8 @@ const mono = IBM_Plex_Mono({ variable: "--font-mono", subsets: ["latin"], weight
 const cjk = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "700"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Zoufeng Signal — Live Mobility OS",
-  description: "Live mobility OS: airport pickup, driver incidents, operations command, preferred drivers.",
+  title: "ZOUFENG — Travel Smarter, Explore Taiwan",
+  description: "Airport transfer, charter, city to city, and corporate cars across Taiwan. Company-dispatched mobility.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
