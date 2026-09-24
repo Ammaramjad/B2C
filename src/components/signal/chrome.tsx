@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLive } from "@/lib/live/engine";
 import { useCopy } from "@/lib/copy";
+import { useStore } from "@/lib/store";
 
 function Director({ compact = false }: { compact?: boolean }) {
   const { live, play, pause, reset, step, setScenario } = useLive();
@@ -100,8 +101,54 @@ function HtmlLang() {
   const { locale } = useCopy();
   useEffect(() => {
     document.documentElement.lang = locale === "zh" ? "zh-Hant" : "en";
+    document.documentElement.dataset.locale = locale;
   }, [locale]);
   return null;
+}
+
+function LiveBell() {
+  const { live } = useLive();
+  const { domain, inboxReadAt, markInboxRead } = useStore();
+  const { L } = useCopy();
+  const [open, setOpen] = useState(false);
+  const notes = [
+    ...live.events.filter((e) => e.audience.includes("passenger")).map((e) => ({ id: e.id, clock: e.clock, text: `${e.title} — ${e.body}` })),
+    ...domain.notifications.filter((n) => n.audience === "passenger").map((n) => ({ id: n.id, clock: n.at.slice(11, 16), text: n.template })),
+  ].slice(0, 8);
+  const unread = live.events.filter((e) => e.audience.includes("passenger") && e.at > inboxReadAt).length
+    + domain.notifications.filter((n) => n.audience === "passenger" && Date.parse(n.at) > inboxReadAt).length;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className="zf-btn ghost"
+        style={{ minHeight: 36, padding: "0 12px" }}
+        data-testid="live-bell"
+        onClick={() => {
+          setOpen((v) => !v);
+          markInboxRead();
+        }}
+      >
+        {L("Alerts", "通知")}
+        {unread > 0 ? <span className="zf-chip crit" data-testid="live-bell-count">{unread}</span> : null}
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-50 mt-2 w-80 zf-panel p-3 text-sm" data-testid="live-bell-panel">
+          <div className="kicker">{L("Live notices", "即時通知")}</div>
+          <ul className="zf-stream mt-2">
+            {notes.map((n) => (
+              <li key={n.id}>
+                <span className="mono text-[var(--mute)]">{n.clock}</span> {n.text}
+              </li>
+            ))}
+          </ul>
+          <Link href="/inbox" className="zf-btn ghost mt-2 wide" onClick={() => setOpen(false)}>
+            {L("Open inbox", "開啟收件匣")}
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function PassengerChrome({ children }: { children: React.ReactNode }) {
@@ -118,27 +165,27 @@ export function PassengerChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <HtmlLang />
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--mist)_90%,transparent)] px-4 py-2 backdrop-blur">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="zf-pin" style={{ background: "var(--signal)", width: 16, height: 16 }} />
-          <b className="tracking-tight">ZOUFENG</b>
-        </Link>
-        <nav className="hidden gap-4 text-sm md:flex">
-          {tabs.map(([h, l]) => (
-            <Link key={h} href={h} className={path === h || (h !== "/" && path.startsWith(h)) ? "text-[var(--signal)]" : "text-[var(--ink-2)]"}>
-              {l}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <LocaleBar />
+      <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--mist)_94%,transparent)] px-5 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="zf-pin" style={{ background: "var(--signal)", width: 18, height: 18 }} />
+            <b className="text-lg tracking-tight">ZOUFENG</b>
+          </Link>
+          <nav className="hidden items-center gap-6 text-[17px] font-medium md:flex">
+            {tabs.map(([h, l]) => (
+              <Link key={h} href={h} className={path === h || (h !== "/" && path.startsWith(h)) ? "text-[var(--signal)]" : "text-[var(--ink-2)]"}>
+                {l}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <LiveBell />
+            <LocaleBar />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <RoleJump />
-          <div className="hidden md:block">
-            <Director />
-          </div>
-          <div className="md:hidden">
-            <Director compact />
-          </div>
+          <Director compact />
         </div>
       </header>
       {live.customerNotice ? (

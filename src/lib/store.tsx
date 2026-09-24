@@ -114,7 +114,10 @@ interface Store {
   setPaymentStatus: (id: string, status: PaymentRecord["status"]) => void;
   addWalletTx: (tx: WalletTx) => void;
   queueNotify: (event: string, audience?: string) => NotificationLog;
+  syncTapeNotices: (events: { id: string; type: string; title: string; body: string; audience: string[]; clock?: string }[]) => void;
   setTranslationStatus: (key: string, status: TranslationRow["status"]) => void;
+  inboxReadAt: number;
+  markInboxRead: () => void;
 }
 
 const defaultDraft: Draft = {
@@ -215,6 +218,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recentState, setRecentState] = useState<string[] | undefined>(undefined);
   const [cancelMidPctState, setCancelMidPct] = useState<number | undefined>(undefined);
   const [domainState, setDomainState] = useState<DomainState | undefined>(undefined);
+  const [inboxReadAt, setInboxReadAt] = useState(0);
 
   const locale = localeState ?? persistedLocale;
   const currency = currencyState ?? persistedCurrency;
@@ -536,6 +540,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           payments: (d ?? persistedDomain).payments.map((p: PaymentRecord) => (p.id === id ? { ...p, status } : p)),
         })),
       addWalletTx: (tx) => setDomainState((d) => ({ ...(d ?? persistedDomain), wallet: [tx, ...(d ?? persistedDomain).wallet] })),
+      inboxReadAt,
+      markInboxRead: () => setInboxReadAt(Date.now()),
+      syncTapeNotices: (events) => {
+        setDomainState((d) => {
+          const cur = d ?? persistedDomain;
+          const have = new Set(cur.notifications.map((n) => n.id));
+          const add = events
+            .filter((e) => !have.has(`LE-${e.id}`))
+            .map((e) => ({
+              id: `LE-${e.id}`,
+              event: e.type,
+              audience: e.audience.includes("passenger") ? "passenger" : e.audience.includes("driver") ? "driver" : "ops",
+              channel: "in_app" as const,
+              language: locale,
+              template: `${e.title} — ${e.body}`,
+              status: "generated" as const,
+              at: new Date().toISOString(),
+              providerConfirmed: false,
+            }));
+          if (!add.length) return cur;
+          return { ...cur, notifications: [...add, ...cur.notifications] };
+        });
+      },
       queueNotify: (event, audience) => {
         const t = templateFor(event);
         const row: NotificationLog = {
@@ -561,7 +588,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           };
         }),
     }),
-    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
+    [locale, currency, theme, user, draft, bookings, switches, tickets, settlements, messages, recent, cancelMidPct, domain, inboxReadAt, persistedDraft, persistedRecent, persistedDomain, setBookings, setSwitches],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -24,7 +24,7 @@ import {
   applyVerifyOtp,
 } from "./actions";
 import { resetEventSeq } from "./events";
-import { animateTick, pickupBeat, preferredBeat } from "./scenario";
+import { animateTick, pickupBeat, preferredBeat, wanderFleet } from "./scenario";
 import { initialSnapshot, seedDrivers } from "./seed";
 import type { LiveSnapshot } from "./types";
 
@@ -79,7 +79,7 @@ const Ctx = createContext<LiveApi | null>(null);
 const KEY = "zf-signal-live-v2";
 
 export function LiveProvider({ children }: { children: ReactNode }) {
-  const { assignDriver, bookings, patchBooking, recordReject, createShare } = useStore();
+  const { assignDriver, bookings, patchBooking, recordReject, createShare, syncTapeNotices } = useStore();
   const [live, setLive] = useState<LiveSnapshot>(initialSnapshot);
   const tRef = useRef(0);
   const beat = useRef(0);
@@ -159,14 +159,24 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   }, [live.offerExpiresAt]);
 
   useEffect(() => {
-    if (!live.playing) return;
+    syncTapeNotices(live.events);
+  }, [live.events, syncTapeNotices]);
+
+  useEffect(() => {
     const id = window.setInterval(() => {
-      setLive((s) => animateTick(s));
-      tRef.current += 1;
-      if (tRef.current % 5 === 0) step();
+      setLive((s) => {
+        const roaming = wanderFleet(s);
+        if (!s.playing) return roaming;
+        tRef.current += 1;
+        const moved = animateTick(roaming);
+        if (tRef.current % 5 !== 0) return moved;
+        const n = beat.current + 1;
+        beat.current = n;
+        return s.scenario === "preferred" ? preferredBeat(moved, n) : pickupBeat(moved, n);
+      });
     }, 900);
     return () => window.clearInterval(id);
-  }, [live.playing, step]);
+  }, [live.playing]);
 
   const api = useMemo<LiveApi>(
     () => ({

@@ -36,6 +36,7 @@ function usePhases() {
 export function PassengerHome() {
   const { live } = useLive();
   const { L } = useCopy();
+  const nearby = live.drivers.filter((d) => d.duty === "online" || d.duty === "busy").length;
   return (
     <div className="grid min-h-[calc(100vh-56px)] lg:grid-cols-[1.15fr_0.85fr]">
       <div className="relative min-h-[52vh]">
@@ -46,6 +47,7 @@ export function PassengerHome() {
           <div className="kicker">{L("Live mobility · Taiwan corridors", "即時移動 · 台灣廊帶")}</div>
           <h1 className="display mt-3 text-5xl md:text-6xl">{L("The car is already on the network.", "車已在網路上。")}</h1>
           <p className="mt-4 max-w-md text-[var(--ink-2)]">{L("Airport, private transfer, charter, taxi. Once you book, this becomes a live pickup — not a confirmation email.", "接機、包車、計時、計程車。一經預訂，就是現場接送——不是確認信。")}</p>
+          <p className="mt-3 text-sm" data-testid="nearby-cars">{L(`${nearby} cars moving in your area right now.`, `你的區域現有 ${nearby} 輛車在移動。`)}</p>
         </div>
         <div className="mt-8 space-y-3">
           <div className="grid grid-cols-2 gap-2">
@@ -267,29 +269,64 @@ export function PassengerLive() {
 
 export function PreferredDrivers() {
   const { live, requestPreferred } = useLive();
+  const { bookings, lastDriverId } = useStore();
   const { L } = useCopy();
   const david = live.drivers[0];
   const st = live.preferred?.status;
+  const history = [...bookings]
+    .filter((b) => b.driverId && b.status === "completed")
+    .sort((a, b) => b.when.localeCompare(a.when));
+  const seen = new Set<string>();
+  const previous = history
+    .map((b) => {
+      if (!b.driverId || seen.has(b.driverId)) return null;
+      seen.add(b.driverId);
+      const liveD = live.drivers.find((d) => d.id === b.driverId);
+      const catalog = { id: b.driverId, name: liveD?.name ?? b.driverId, plate: liveD?.plate ?? "—", vehicle: liveD?.vehicle ?? b.vehicle, klass: liveD?.klass ?? b.vehicle, rating: liveD?.rating ?? 4.9, onTime: liveD?.onTime ?? 0.96, rides: history.filter((x) => x.driverId === b.driverId).length, last: b.when.slice(0, 10) };
+      return catalog;
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  const cards = [
+    {
+      id: david.id,
+      name: david.name,
+      plate: david.plate,
+      vehicle: david.vehicle,
+      klass: david.klass,
+      rating: david.rating,
+      onTime: david.onTime,
+      rides: david.ridesWithSarah || previous.find((p) => p.id === david.id)?.rides || 12,
+      last: previous.find((p) => p.id === david.id)?.last ?? "2026-03-20",
+    },
+    ...previous.filter((p) => p.id !== david.id),
+  ];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 pb-24">
       <div className="kicker">{L("Company-mediated preference · M25", "公司仲介指定司機 · M25")}</div>
       <h1 className="display mt-2 text-5xl">{L("My previous drivers", "我的歷史司機")}</h1>
-      <p className="mt-3 max-w-xl text-[var(--ink-2)]">{L("Driver preference is a request and is subject to availability and company confirmation. You never book a driver privately.", "指定司機是申請，需視檔期與公司確認。你不能私下預訂司機。")}</p>
-      <div className="zf-panel mt-6 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-2xl font-semibold">{david.name}</div>
-            <div className="text-sm text-[var(--ink-2)]">
-              {david.rating} ★ · {david.ridesWithSarah} rides with you · last {david.lastRide} · {david.klass} · {Math.round(david.onTime * 100)}% on-time
+      <p className="mt-3 max-w-xl text-[var(--ink-2)]">{L("Six months later you can still request the same driver. Zoufeng contacts them — you never get a private LINE or phone.", "六個月後仍可申請同一位司機。由走癲聯絡對方——不會給你私人 LINE 或電話。")}</p>
+      <p className="mt-2 text-sm">{L("Last company driver on file", "公司紀錄的上次司機")} · {lastDriverId("p-sarah") ?? lastDriverId() ?? "D-118"}</p>
+      {cards.map((d) => (
+        <div key={d.id} className="zf-panel mt-6 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-2xl font-semibold">{d.name}</div>
+              <div className="mt-1 text-sm text-[var(--ink-2)]">
+                {d.rating} ★ · {d.rides} {L("rides with you", "次同行")} · {L("last", "上次")} {d.last} · {d.klass} · {d.vehicle} · {d.plate} · {Math.round(d.onTime * 100)}% {L("on-time", "準時")}
+              </div>
             </div>
+            <button type="button" className="zf-btn" data-testid={d.id === david.id ? "request-preferred" : undefined} onClick={() => requestPreferred(d.id.startsWith("D-") ? d.id : david.id)}>
+              {L("Request this driver", "申請這位司機")}
+            </button>
           </div>
-          <button type="button" className="zf-btn" data-testid="request-preferred" onClick={() => requestPreferred(david.id)}>
-            {L("Request this driver", "申請這位司機")}
-          </button>
+          <p className="mt-3 text-sm">{L("Preferred Driver premium +18% (configurable 15–20%). Fallback: nearest similar class if unavailable.", "指定司機加成 +18%（可設 15–20%）。若檔期不足，改派最近同級車輛。")}</p>
+          <div className="mt-3 zf-panel p-3 text-sm">
+            <div className="kicker">{L("Contact", "聯絡")}</div>
+            <p className="mt-1">{L("Company LINE desk @zoufeng.ops · relay +886 800 820 041. Private LINE / WeChat / phone of the driver is not released.", "公司 LINE 櫃檯 @zoufeng.ops · 代轉 +886 800 820 041。不提供司機私人 LINE／微信／電話。")}</p>
+          </div>
         </div>
-        <p className="mt-3 text-sm">{L("Preferred Driver premium +18% (configurable 15–20%). Fallback: nearest similar class if David is unavailable.", "指定司機加成 +18%（可設 15–20%）。若 David 不可用，改派最近同級車輛。")}</p>
-      </div>
+      ))}
       <div className="zf-panel mt-4 p-5">
         <div className="kicker">{L("Request status", "申請狀態")}</div>
         <ol className="mt-3 space-y-2 text-sm">

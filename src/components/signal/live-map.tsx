@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import { TAIPEI_101, TPE_T1 } from "@/lib/live/geo";
 import type { DriverMarkerState, GeoPoint, LiveDriver } from "@/lib/live/types";
 import { useLive } from "@/lib/live/engine";
+import { useCopy } from "@/lib/copy";
 import { resolveGeoProvider } from "@/lib/maps";
 
 const tiles = resolveGeoProvider("simulation").tiles;
@@ -62,6 +63,7 @@ export function LiveMap({
   height?: string | number;
 }) {
   const { live } = useLive();
+  const { L } = useCopy();
   const assigned = live.drivers.find((d) => d.id === live.assignedId);
   const route = useMemo(() => live.route.map((p) => [p.lat, p.lng] as [number, number]), [live.route]);
   const focus: GeoPoint[] = assigned ? [assigned.loc, TPE_T1, TAIPEI_101] : [TPE_T1, TAIPEI_101];
@@ -97,11 +99,11 @@ export function LiveMap({
         ) : null}
       </MapContainer>
       <div className="zf-map-legend">
-        <i data-s="available" /> Available
-        <i data-s="to_pickup" /> Assigned
-        <i data-s="incident" /> Incident
+        <i data-s="available" /> {L("Moving now", "移動中")}
+        <i data-s="to_pickup" /> {L("Assigned", "已指派")}
+        <i data-s="incident" /> {L("Incident", "事件")}
       </div>
-      {live.sim ? <div className="zf-sim">SIMULATED REALTIME · same event interface as production GPS</div> : null}
+      {live.sim ? <div className="zf-sim">{L("SIMULATED REALTIME · same event interface as production GPS", "模擬即時 · 與正式 GPS 同一事件介面")}</div> : null}
     </div>
   );
 }
@@ -110,7 +112,7 @@ function DriverMark({ d, highlight }: { d: LiveDriver; highlight: boolean }) {
   return (
     <Marker position={[d.loc.lat, d.loc.lng]} icon={pin(d.state)} zIndexOffset={highlight ? 400 : 0}>
       <Tooltip className="zf-tip">
-        {d.name} · {d.klass} · {d.state.replace("_", " ")}
+        {d.name} · {d.klass} · {d.plate} · {d.state.replace("_", " ")}
       </Tooltip>
     </Marker>
   );

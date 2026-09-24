@@ -14,7 +14,7 @@ export const seedDrivers: LiveDriver[] = [
     accept: 0.96,
     onTime: 0.98,
     ridesWithSarah: 12,
-    lastRide: "18 Sep",
+    lastRide: "20 Mar",
     state: "available",
     loc: APPROACH_DAVID[0],
     heading: 38,

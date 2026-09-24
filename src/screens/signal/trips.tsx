@@ -156,22 +156,59 @@ export function SignalTripDetail() {
 }
 
 export function SignalAccount() {
-  const { user } = useStore();
+  const { user, bookings, domain } = useStore();
   const { live } = useLive();
   const { L } = useCopy();
+  const nearby = live.drivers.filter((d) => d.duty !== "offline").length;
+  const orders = bookings.filter((b) => b.status !== "cancelled").slice(0, 5);
+  const notices = [
+    ...live.events.filter((e) => e.audience.includes("passenger")).slice(0, 6),
+  ];
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 pb-24">
       <div className="kicker">{L("You", "我的")}</div>
       <h1 className="display mt-2 text-5xl">{user?.name ?? "Sarah Chen"}</h1>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="zf-panel p-4">
+          <div className="kicker">{L("Orders", "訂單")}</div>
+          <div className="zf-metric text-3xl">{bookings.length}</div>
+        </div>
+        <div className="zf-panel p-4">
+          <div className="kicker">{L("Live notices", "即時通知")}</div>
+          <div className="zf-metric text-3xl">{notices.length + domain.notifications.filter((n) => n.audience === "passenger").length}</div>
+        </div>
+        <div className="zf-panel p-4">
+          <div className="kicker">{L("Cars in area", "區域車輛")}</div>
+          <div className="zf-metric text-3xl">{nearby}</div>
+        </div>
+      </div>
+      <h2 className="mt-8 text-xl font-semibold">{L("What just moved", "剛剛在動的事")}</h2>
+      <ul className="zf-stream mt-3">
+        {notices.map((e) => (
+          <li key={e.id}>
+            <span className="mono text-[var(--mute)]">{e.clock}</span> {e.title} — {e.body}
+          </li>
+        ))}
+        {domain.notifications.filter((n) => n.audience === "passenger").slice(0, 4).map((n) => (
+          <li key={n.id}>{n.template}</li>
+        ))}
+      </ul>
+      <h2 className="mt-8 text-xl font-semibold">{L("Recent orders", "最近訂單")}</h2>
+      <div className="mt-3 space-y-2">
+        {orders.map((b) => (
+          <Link key={b.id} href={`/trips/${b.id}`} className="zf-panel flex justify-between p-4">
+            <span>{b.id} · {b.status}</span>
+            <span className="mono">{b.when.slice(0, 10)}</span>
+          </Link>
+        ))}
+      </div>
       <div className="mt-6 grid gap-2">
         {[
-          ["/preferred", L("Preferred drivers · company-mediated", "指定司機 · 公司仲介")],
+          ["/preferred", L("Request the same driver again", "再次申請同一位司機")],
+          ["/inbox", L("Notifications", "通知")],
+          ["/support", L("Resolve or announce with the desk", "向櫃檯求助或通報")],
           ["/wallet", L("Wallet", "錢包")],
           ["/loyalty", L("Points", "點數")],
-          ["/referral", L("Referral", "推薦")],
-          ["/inbox", L("Notifications", "通知")],
-          ["/support", L("Support", "客服")],
-          ["/planner", L("Planner", "行程規劃")],
           ["/trips", L("My trips", "我的訂單")],
           ["/live", `${L("Live pickup", "即時接送")} ${live.bookingId}`],
         ].map(([h, l]) => (
