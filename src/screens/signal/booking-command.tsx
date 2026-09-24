@@ -329,7 +329,7 @@ export function BookingExperience() {
                 ) : null}
                 <PartyStepper pax={state.passengers} bags={state.luggage} setPax={(n) => dispatch({ type: "patch", patch: { passengers: n } })} setBags={(n) => dispatch({ type: "patch", patch: { luggage: n } })} paxLabel={L("Passengers", "乘客")} bagLabel={L("Bags", "行李")} />
                 {state.service.startsWith("airport") ? (
-                  <label className="zf-cmd-field"><span>{L("Flight", "航班")}</span><input value={state.flight} onChange={(e) => dispatch({ type: "patch", patch: { flight: e.target.value.toUpperCase() })} /></label>
+                  <label className="zf-cmd-field"><span>{L("Flight", "航班")}</span><input value={state.flight} onChange={(e) => dispatch({ type: "patch", patch: { flight: e.target.value.toUpperCase() } })} /></label>
                 ) : null}
                 <label className="zf-cmd-field"><span>{L("Name", "姓名")}</span><input value={state.name} onChange={(e) => dispatch({ type: "patch", patch: { name: e.target.value } })} /></label>
                 <label className="zf-cmd-field"><span>{L("Phone", "電話")}</span><input value={state.phone} onChange={(e) => dispatch({ type: "patch", patch: { phone: e.target.value } })} /></label>
