@@ -8,11 +8,13 @@ import { formatMetric, mergeScorecards, scorecardFromCatalog, scorecardFromLive 
 import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
 import { useStore } from "@/lib/store";
+import { useCopy, corridor } from "@/lib/copy";
 
 const me = drivers[0];
 
 export function DriverDutyHome() {
   const { live, setDuty } = useLive();
+  const { L } = useCopy();
   const d = live.drivers[0];
   return (
     <div className="space-y-3">
@@ -28,7 +30,7 @@ export function DriverDutyHome() {
         ))}
       </div>
       <div className="zf-panel p-4">
-        <div className="kicker">Current / next</div>
+        <div className="kicker">{L("Current / next", "目前／下一趟")}</div>
         <div className="mt-1 text-xl font-semibold">
           {live.bookingId} · {live.pickup}
         </div>
@@ -36,22 +38,22 @@ export function DriverDutyHome() {
           {live.flight} · {live.passenger} · {live.phase.replaceAll("_", " ")}
         </p>
         <Link href="/driver/run" className="zf-btn wide mt-3">
-          Open assignment
+          {L("Open assignment", "開啟派遣")}
         </Link>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <Link href="/driver/history" className="zf-panel p-3">History</Link>
-          <Link href="/driver/settlement" className="zf-panel p-3">Settlement</Link>
-          <Link href="/driver/documents" className="zf-panel p-3">Vehicle / docs</Link>
-          <Link href="/driver/safety" className="zf-panel p-3">Safety</Link>
-          <Link href="/driver/inbox" className="zf-panel p-3">Inbox</Link>
-          <Link href="/driver/support" className="zf-panel p-3">Support</Link>
+          <Link href="/driver/history" className="zf-panel p-3">{L("History", "歷史")}</Link>
+          <Link href="/driver/settlement" className="zf-panel p-3">{L("Settlement", "結算")}</Link>
+          <Link href="/driver/documents" className="zf-panel p-3">{L("Vehicle / docs", "車輛／證件")}</Link>
+          <Link href="/driver/safety" className="zf-panel p-3">{L("Safety", "安全")}</Link>
+          <Link href="/driver/inbox" className="zf-panel p-3">{L("Inbox", "收件匣")}</Link>
+          <Link href="/driver/support" className="zf-panel p-3">{L("Support", "支援")}</Link>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {[
-          ["Today", `NT$${me.earningsToday.toLocaleString()}`],
-          ["Week trips", String(me.completedWeek)],
-          ["Accept", formatMetric(me.acceptRate, "pct")],
+          [L("Today", "今日"), `NT$${me.earningsToday.toLocaleString()}`],
+          [L("Week trips", "本週趟次"), String(me.completedWeek)],
+          [L("Accept", "接單率"), formatMetric(me.acceptRate, "pct")],
         ].map(([k, v]) => (
           <div key={k} className="zf-panel p-3">
             <div className="kicker">{k}</div>
@@ -63,8 +65,9 @@ export function DriverDutyHome() {
   );
 }
 
-export function DriverJobFlow() {
+export function DriverJobFlow({ step }: { step?: "run" | "pickup" | "otp" | "trip" }) {
   const { live, markArrived, verifyOtp, completeTrip } = useLive();
+  const { L } = useCopy();
   const router = useRouter();
   const [otp, setOtp] = useState("");
   const [err, setErr] = useState("");
@@ -87,17 +90,25 @@ export function DriverJobFlow() {
   }
   const cta =
     live.phase === "arrived" || live.phase === "waiting"
-      ? "Verify OTP"
+      ? L("Verify OTP", "驗證 OTP")
       : live.phase === "trip_started" || live.phase === "en_route_dest"
-        ? "Complete trip"
-        : "Arrived at Door 8";
+        ? L("Complete trip", "完成行程")
+        : L("Arrived at Door 8", "已到 8 號門");
+  const banner =
+    step === "pickup"
+      ? L("Pickup — approach Door 8", "接客 — 前往 8 號門")
+      : step === "otp"
+        ? L("OTP — passenger code on the live sheet", "OTP — 乘客即時頁上的代碼")
+        : step === "trip"
+          ? L("Trip — en route to destination", "行程 — 前往目的地")
+          : L("Job — follow the live assignment", "任務 — 依即時派遣");
   return (
     <div className="-mx-4">
       <div className="h-[320px]">
         <MapMount mode="night" height="320px" showFleet={false} />
       </div>
       <div className="space-y-3 px-4 pt-3">
-        <div className="kicker">{live.phase.replaceAll("_", " ")}</div>
+        <div className="kicker">{banner} · {live.phase.replaceAll("_", " ")}</div>
         <h1 className="display text-3xl">{live.pickup}</h1>
         <p className="text-sm">
           {live.flight} · {live.flightStatus} · {d.name}
@@ -107,7 +118,7 @@ export function DriverJobFlow() {
         </div>
         {live.phase === "arrived" || live.phase === "waiting" ? (
           <label className="zf-field">
-            <span>Passenger OTP</span>
+            <span>{L("Passenger OTP", "乘客 OTP")}</span>
             <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder={live.otp} />
           </label>
         ) : null}
@@ -121,10 +132,12 @@ export function DriverJobFlow() {
 }
 
 export function DriverHistory() {
+  const { locale } = useStore();
+  const { L } = useCopy();
   const mine = seedBookings.filter((b) => b.driverId === "d1" || b.driverId === "D-118");
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Trip history</h1>
+      <h1 className="display text-4xl">{L("Trip history", "行程歷史")}</h1>
       <table className="zf-table">
         <thead>
           <tr>
@@ -138,7 +151,7 @@ export function DriverHistory() {
             <tr key={b.id}>
               <td>{b.id}</td>
               <td>
-                {b.pickup} → {b.dropoff}
+                {corridor(locale, b.pickup, b.pickupZh)} → {corridor(locale, b.dropoff, b.dropoffZh)}
               </td>
               <td>{b.status}</td>
             </tr>
@@ -150,9 +163,10 @@ export function DriverHistory() {
 }
 
 export function DriverMoney() {
+  const { L } = useCopy();
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Earnings</h1>
+      <h1 className="display text-4xl">{L("Earnings", "收入")}</h1>
       <table className="zf-table">
         <thead>
           <tr>
@@ -188,10 +202,11 @@ export function DriverMoney() {
 }
 
 export function DriverSettle() {
+  const { L } = useCopy();
   const rows = seedSettlements.filter((s) => s.driverId === "d1");
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Settlement</h1>
+      <h1 className="display text-4xl">{L("Settlement", "結算")}</h1>
       <table className="zf-table">
         <thead>
           <tr>
@@ -217,12 +232,20 @@ export function DriverSettle() {
 }
 
 export function DriverDocs() {
+  const { L } = useCopy();
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Documents / vehicle</h1>
-      <div className="zf-panel p-4 text-sm">
-        License {me.license} · {me.vehicle} · {me.plate} · {me.fuel} · {me.vehicleState} · fleet {me.fleet}
-      </div>
+      <h1 className="display text-4xl">{L("Documents / vehicle", "證件／車輛")}</h1>
+      <table className="zf-table">
+        <tbody>
+          <tr><td>{L("License", "駕照")}</td><td>{me.license}</td></tr>
+          <tr><td>{L("Vehicle", "車輛")}</td><td>{me.vehicle} · {me.plate}</td></tr>
+          <tr><td>{L("Fuel", "能源")}</td><td>{me.fuel}</td></tr>
+          <tr><td>{L("State", "狀態")}</td><td>{me.vehicleState}</td></tr>
+          <tr><td>{L("Fleet", "車隊")}</td><td>{me.fleet}</td></tr>
+          <tr><td>{L("Compliance", "合規")}</td><td>{L("Demo card — upload not configured", "示範卡片 — 尚未設定上傳")}</td></tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -230,6 +253,7 @@ export function DriverDocs() {
 export function DriverScore() {
   const { live } = useLive();
   const { bookings, domain } = useStore();
+  const { L } = useCopy();
   const liveD = live.drivers[0];
   const extras = {
     rejects: live.rejects[liveD.id] ?? domain.rejects.filter((r) => r.driverId === liveD.id).length,
@@ -257,8 +281,8 @@ export function DriverScore() {
   ];
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Performance</h1>
-      <p className="text-sm text-[var(--mute)]">Dashes are fields the domain does not store. Nothing is invented.</p>
+      <h1 className="display text-4xl">{L("Performance", "績效")}</h1>
+      <p className="text-sm text-[var(--mute)]">{L("Dashes are fields the domain does not store. Nothing is invented.", "破折號表示領域沒有此欄。沒有編造數字。")}</p>
       <table className="zf-table">
         <tbody>
           {rows.map(([k, v]) => (
@@ -274,36 +298,68 @@ export function DriverScore() {
 }
 
 export function DriverSafety() {
+  const { L } = useCopy();
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Safety</h1>
+      <h1 className="display text-4xl">{L("Safety", "安全")}</h1>
       <Link href="/driver/incident" className="zf-btn wide">
-        Report incident
+        {L("Report incident", "回報事件")}
       </Link>
-      <p className="text-sm">SOS is opened from the passenger live sheet and lands on the ops tape.</p>
+      <p className="text-sm">{L("SOS is opened from the passenger live sheet and lands on the ops tape.", "SOS 從乘客即時頁開啟，落在調度事件帶。")}</p>
     </div>
   );
 }
 
 export function DriverHelp() {
+  const { L } = useCopy();
+  const { tickets, askHalo, messages } = useStore();
+  const [text, setText] = useState("");
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Support</h1>
-      <p className="text-sm">Dispatch-owned offers only. Preferred bookings cannot be accepted as a private job.</p>
+      <h1 className="display text-4xl">{L("Support", "支援")}</h1>
+      <p className="text-sm">{L("Dispatch-owned offers only. Preferred bookings cannot be accepted as a private job.", "僅公司派遣指派。指定訂單不能當私活接下。")}</p>
+      <table className="zf-table">
+        <tbody>
+          {tickets.slice(0, 4).map((t) => (
+            <tr key={t.id}>
+              <td>{t.id}</td>
+              <td>{t.category}</td>
+              <td>{t.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="zf-panel p-3">
+        {messages.slice(-3).map((m) => (
+          <p key={m.id} className="text-sm">{m.role} · {m.text}</p>
+        ))}
+        <div className="mt-2 flex gap-2">
+          <input className="flex-1 border border-[var(--line)] px-2 py-1" value={text} onChange={(e) => setText(e.target.value)} />
+          <button type="button" className="zf-btn" onClick={() => { if (text) askHalo(text); setText(""); }}>{L("Ask", "詢問")}</button>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function DriverInbox() {
   const { live } = useLive();
+  const { domain } = useStore();
+  const { L } = useCopy();
   const rows = live.events.filter((e) => e.audience.includes("driver")).slice(0, 16);
+  const notes = domain.notifications.filter((n) => n.audience === "driver" || n.audience === "ops").slice(0, 8);
   return (
     <div className="space-y-3">
-      <h1 className="display text-4xl">Notifications</h1>
+      <h1 className="display text-4xl">{L("Notifications", "通知")}</h1>
       <ul className="zf-stream">
         {rows.map((e) => (
           <li key={e.id}>
             {e.clock} · {e.title}
+          </li>
+        ))}
+        {notes.map((n) => (
+          <li key={n.id}>
+            {n.at.slice(11, 16)} · {n.event} · {n.template}
           </li>
         ))}
       </ul>

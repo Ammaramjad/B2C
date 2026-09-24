@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { extras, promos, services, vehicles } from "@/lib/catalog";
-import { passengers } from "@/lib/data";
+import { drivers, passengers } from "@/lib/data";
+import { formatMetric, scorecardFromCatalog } from "@/lib/live/metrics";
 import { capacityScenario, defaultDispatchPolicy, defaultDynamicRules, simulateCancel, simulateQuote } from "@/lib/domain/policy";
 import { cancelFee, quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
@@ -57,7 +58,7 @@ export function CfgVehicles() {
           <tbody>
             {vehicles.map((v) => (
               <tr key={v.id}>
-                <td>{v.name}</td>
+                <td>{v.name} · {v.nameZh}</td>
                 <td>{v.seats}</td>
                 <td>{v.luggage}</td>
                 <td>NT${v.base}</td>
@@ -295,9 +296,9 @@ export function CfgDispatch() {
 }
 
 export function CfgNotify() {
-  const { domain, queueNotify } = useStore();
+  const { domain, queueNotify, locale } = useStore();
   const [event, setEvent] = useState(NOTIFY_TEMPLATES[0].event);
-  const preview = previewNotification(event, "en");
+  const preview = previewNotification(event, locale);
   return (
     <Studio kicker="Notification center" title="Templates · generated, never claimed delivered">
       <p className="mt-2 text-sm">Demo preview only. SMS/email/push is not delivered unless a provider confirms it.</p>
@@ -343,7 +344,7 @@ export function CfgNotify() {
 }
 
 export function CfgI18n() {
-  const { domain } = useStore();
+  const { domain, setTranslationStatus } = useStore();
   const [filter, setFilter] = useState<string>("all");
   const rows = domain.translations.filter((t) => filter === "all" || t.status === filter);
   return (
@@ -370,7 +371,19 @@ export function CfgI18n() {
               <td>{t.namespace}.{t.key}</td>
               <td>{t.en || "—"}</td>
               <td>{t.zh || "—"}</td>
-              <td>{t.status}</td>
+              <td>
+                {t.status}
+                {t.status !== "approved" && t.status !== "APPROVED" ? (
+                  <div className="mt-1 flex gap-1">
+                    <button type="button" className="zf-btn ghost" style={{ minHeight: 24, fontSize: 10 }} onClick={() => setTranslationStatus(t.key, "reviewed")}>
+                      review
+                    </button>
+                    <button type="button" className="zf-btn ghost" style={{ minHeight: 24, fontSize: 10 }} onClick={() => setTranslationStatus(t.key, "approved")}>
+                      approve
+                    </button>
+                  </div>
+                ) : null}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -620,19 +633,41 @@ export function FinRecon() {
   const { bookings, domain } = useStore();
   const pays = seedPaymentsFromBookings(bookings, domain.payments);
   const totals = financeTotals(pays, domain.wallet);
+  const simProvider = totals.captured;
   return (
-    <Studio kicker="Reconciliation" title="Internal ledger vs unconfigured provider">
+    <Studio kicker="Reconciliation" title="Internal ledger vs simulation feed">
+      <p className="mt-2 text-sm">Simulation feed mirrors the internal captured total. Production PSP remains unconfigured — this is not a provider confirmation.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="zf-panel p-3"><div className="kicker">Internal captured</div><div className="zf-metric">NT${totals.captured.toLocaleString()}</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Provider</div><div className="text-sm">Not enough data — production PSP unconfigured</div></div>
-        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="text-sm">Unknown until a provider feed exists</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Simulation feed</div><div className="zf-metric">NT${simProvider.toLocaleString()}</div></div>
+        <div className="zf-panel p-3"><div className="kicker">Difference</div><div className="zf-metric">NT$0</div></div>
       </div>
+      <table className="zf-table mt-4">
+        <thead>
+          <tr>
+            <th>Booking</th>
+            <th>Internal</th>
+            <th>Simulation</th>
+            <th>Match</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pays.slice(0, 12).map((p) => (
+            <tr key={p.id}>
+              <td>{p.bookingId}</td>
+              <td>{p.amount}</td>
+              <td>{p.amount}</td>
+              <td>yes · demo</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Studio>
   );
 }
 
 export function Crm360() {
-  const { bookings, domain, addNote } = useStore();
+  const { bookings, domain, addNote, tickets } = useStore();
   const [id, setId] = useState(passengers[0].id);
   const [tab, setTab] = useState("OVERVIEW");
   const [note, setNote] = useState("");
@@ -682,14 +717,119 @@ export function Crm360() {
         </table>
       ) : null}
       {tab === "PREFERRED DRIVERS" ? (
-        <p className="mt-4 text-sm">
-          Preferred cases: {domain.preferredCases.filter((c) => c.customerId === p.id).length || "none on domain"}. Company-mediated only — /ops/preferred.
-        </p>
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>Driver</th>
+              <th>Rides</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {domain.preferredCases.filter((c) => c.customerId === p.id).map((c) => (
+              <tr key={c.id}>
+                <td>{c.id}</td>
+                <td>{c.driverId}</td>
+                <td>{c.ridesTogether}</td>
+                <td>{c.status}</td>
+              </tr>
+            ))}
+            {domain.preferredCases.filter((c) => c.customerId === p.id).length === 0 ? (
+              <tr><td colSpan={4}>none on domain · company-mediated only</td></tr>
+            ) : null}
+          </tbody>
+        </table>
       ) : null}
       {tab === "PAYMENTS" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Id</th>
+              <th>Status</th>
+              <th>Amount</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {seedPaymentsFromBookings(mine, domain.payments.filter((n) => mine.some((b) => b.id === n.bookingId))).map((n) => (
+              <tr key={n.id}>
+                <td>{n.id}</td>
+                <td>{n.status}</td>
+                <td>{n.amount}</td>
+                <td>{n.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "WALLET" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Tx</th>
+              <th>Type</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {seedWalletFromBookings(mine, domain.wallet.filter((w) => w.passengerId === p.id)).map((w) => (
+              <tr key={w.id}>
+                <td>{w.id}</td>
+                <td>{w.type}</td>
+                <td>{w.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "LOYALTY" ? (
+        <div className="zf-panel mt-4 p-4 text-sm">
+          Points {p.points} · RFM {p.rfm} · {p.trips} catalog trips · spend NT${p.spendTwd.toLocaleString()}
+        </div>
+      ) : null}
+      {tab === "REFERRALS" ? (
+        <table className="zf-table mt-4">
+          <tbody>
+            <tr><td>Code</td><td>ZOUDIAN-{p.id.toUpperCase()}</td></tr>
+            <tr><td>Rule</td><td>NT$100 / NT$100 after paid trip</td></tr>
+            <tr><td>Channel</td><td>customer → customer · company settle</td></tr>
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "SUPPORT" ? (
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Category</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.filter((t) => t.passengerId === p.id).map((t) => (
+              <tr key={t.id}>
+                <td>{t.id}</td>
+                <td>{t.category}</td>
+                <td>{t.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "CONSENT" ? (
+        <table className="zf-table mt-4">
+          <tbody>
+            <tr><td>Share trip</td><td>opt-in per token · expires</td></tr>
+            <tr><td>Marketing</td><td>demo · not delivered</td></tr>
+            <tr><td>Location on live map</td><td>active while booking bound</td></tr>
+          </tbody>
+        </table>
+      ) : null}
+      {tab === "AUDIT" ? (
         <ul className="zf-stream mt-4">
-          {domain.payments.filter((n) => mine.some((b) => b.id === n.bookingId)).map((n) => (
-            <li key={n.id}>{n.id} · {n.status} · {n.amount} · {n.source}</li>
+          {domain.audit.filter((a) => a.entity.includes(p.id) || a.detail.includes(p.name) || mine.some((b) => a.entity === b.id)).map((a) => (
+            <li key={a.id}>{a.at.slice(0, 16)} · {a.action} · {a.detail}</li>
           ))}
         </ul>
       ) : null}
@@ -851,7 +991,29 @@ export function RoleAnalytics() {
         </table>
       ) : null}
       {role === "driver" ? (
-        <p className="mt-4 text-sm">Driver distributions use scorecards — no hardcoded Kenji week count.</p>
+        <table className="zf-table mt-4">
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Rides</th>
+              <th>Accept</th>
+              <th>On-time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {drivers.map((d) => {
+              const card = scorecardFromCatalog(d, bookings, live.counters.incidents);
+              return (
+                <tr key={d.id}>
+                  <td>{d.name}</td>
+                  <td>{formatMetric(card.totalRides)}</td>
+                  <td>{formatMetric(card.acceptanceRate, "pct")}</td>
+                  <td>{formatMetric(card.onTimePickups)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       ) : null}
       {role === "growth" ? (
         <table className="zf-table mt-4">

@@ -7,25 +7,27 @@ import { resolveBooking } from "@/lib/domain/booking";
 import { cancelFee, money } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
+import { useCopy, corridor } from "@/lib/copy";
 
 export function SignalTrips() {
-  const { bookings } = useStore();
+  const { bookings, locale } = useStore();
+  const { L } = useCopy();
+  const tabs = [
+    ["Upcoming", L("Upcoming", "即將出發"), ["payment_confirmed", "new", "assigned", "accepted"]],
+    ["Active", L("Active", "進行中"), ["arriving", "onboard"]],
+    ["Completed", L("Completed", "已完成"), ["completed"]],
+    ["Cancelled", L("Cancelled", "已取消"), ["cancelled"]],
+  ] as const;
   const [tab, setTab] = useState("Upcoming");
-  const groups: Record<string, string[]> = {
-    Upcoming: ["payment_confirmed", "new", "assigned", "accepted"],
-    Active: ["arriving", "onboard"],
-    Completed: ["completed"],
-    Cancelled: ["cancelled"],
-  };
-  const rows = bookings.filter((b) => groups[tab].includes(b.status));
+  const rows = bookings.filter((b) => (tabs.find((t) => t[0] === tab)?.[2] ?? []).includes(b.status));
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="kicker">Movements</div>
-      <h1 className="display mt-2 text-5xl">My trips</h1>
+      <div className="kicker">{L("Movements", "行程")}</div>
+      <h1 className="display mt-2 text-5xl">{L("My trips", "我的訂單")}</h1>
       <div className="mt-6 flex gap-4 text-sm">
-        {Object.keys(groups).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={tab === t ? "text-[var(--signal)]" : "text-[var(--mute)]"}>
-            {t}
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} className={tab === id ? "text-[var(--signal)]" : "text-[var(--mute)]"}>
+            {label}
           </button>
         ))}
       </div>
@@ -35,7 +37,7 @@ export function SignalTrips() {
             <div>
               <div className="kicker">{b.id}</div>
               <div className="font-semibold">
-                {b.pickup} → {b.dropoff}
+                {corridor(locale, b.pickup, b.pickupZh)} → {corridor(locale, b.dropoff, b.dropoffZh)}
               </div>
               <div className="text-sm text-[var(--ink-2)]">
                 {b.when.replace("T", " ")} · {b.vehicle} · {b.status}
@@ -51,8 +53,9 @@ export function SignalTrips() {
 
 export function SignalSuccess() {
   const { id } = useParams<{ id: string }>();
-  const { bookings } = useStore();
+  const { bookings, locale } = useStore();
   const { live } = useLive();
+  const { L } = useCopy();
   const b = resolveBooking(id, bookings, live);
   if (!b) {
     return (
@@ -69,13 +72,13 @@ export function SignalSuccess() {
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <div className="zf-chip ok">Paid</div>
-      <h1 className="display mt-3 text-5xl">On the network.</h1>
+        <h1 className="display mt-3 text-5xl">{L("On the network.", "已在網路上。")}</h1>
       <p className="mt-3 text-[var(--ink-2)]">
-        {b.id} is confirmed. Flight and driver states will move on the live map — you do not refresh.
+        {L(`${b.id} is confirmed. Flight and driver states will move on the live map — you do not refresh.`, `${b.id} 已確認。航班與司機狀態會在即時地圖上移動——不必重新整理。`)}
       </p>
       <div className="zf-panel mt-6 p-4">
         <div className="font-semibold">
-          {b.pickup} → {b.dropoff}
+          {corridor(locale, b.pickup, b.pickupZh)} → {corridor(locale, b.dropoff, b.dropoffZh)}
         </div>
         <div className="text-sm">
           {b.flight || "—"} · {b.vehicle} · {money(b.price, b.currency)}
@@ -83,10 +86,10 @@ export function SignalSuccess() {
       </div>
       <div className="mt-4 flex gap-2">
         <Link href="/live" className="zf-btn">
-          Open live pickup
+          {L("Open live pickup", "開啟即時接送")}
         </Link>
         <Link href="/trips" className="zf-btn ghost">
-          All trips
+          {L("All trips", "全部訂單")}
         </Link>
       </div>
     </div>
@@ -95,8 +98,9 @@ export function SignalSuccess() {
 
 export function SignalTripDetail() {
   const { id } = useParams<{ id: string }>();
-  const { bookings, cancel, cancelMidPct, domain } = useStore();
+  const { bookings, cancel, cancelMidPct, domain, locale } = useStore();
   const { live } = useLive();
+  const { L } = useCopy();
   const [now] = useState(() => Date.now());
   const b = resolveBooking(id, bookings, live);
   if (!b) {
@@ -117,14 +121,14 @@ export function SignalTripDetail() {
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <div className="kicker">{b.id}</div>
-      <h1 className="display mt-2 text-5xl">{b.pickup}</h1>
-      <p className="mt-2 text-[var(--ink-2)]">→ {b.dropoff}</p>
+      <h1 className="display mt-2 text-5xl">{corridor(locale, b.pickup, b.pickupZh)}</h1>
+      <p className="mt-2 text-[var(--ink-2)]">→ {corridor(locale, b.dropoff, b.dropoffZh)}</p>
       <div className="zf-panel mt-6 space-y-2 p-4 text-sm">
-        <div>Status · {b.status}</div>
-        <div>Flight · {b.flight || "—"}</div>
-        <div>Vehicle · {b.vehicle}</div>
-        <div>Driver · {(bound ? live.assignedId : null) ?? b.driverId ?? "company matching"}</div>
-        {bound ? <div>OTP · {live.otp}</div> : <div>OTP · held on the live assignment</div>}
+        <div>{L("Status", "狀態")} · {b.status}</div>
+        <div>{L("Flight", "航班")} · {b.flight || "—"}</div>
+        <div>{L("Vehicle", "車款")} · {b.vehicle}</div>
+        <div>{L("Driver", "司機")} · {(bound ? live.assignedId : null) ?? b.driverId ?? L("company matching", "公司配對")}</div>
+        {bound ? <div>OTP · {live.otp}</div> : <div>OTP · {L("held on the live assignment", "在即時派遣上")}</div>}
         <div className="zf-metric text-2xl">{money(b.price, b.currency)}</div>
         {b.status !== "cancelled" && b.status !== "completed" ? (
           <div data-testid="cancel-fee-preview">Cancel fee now (cancelFee) · NT${fee.toLocaleString()} · {hours.toFixed(1)}h before pickup</div>
@@ -154,20 +158,22 @@ export function SignalTripDetail() {
 export function SignalAccount() {
   const { user } = useStore();
   const { live } = useLive();
+  const { L } = useCopy();
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="kicker">You</div>
+      <div className="kicker">{L("You", "我的")}</div>
       <h1 className="display mt-2 text-5xl">{user?.name ?? "Sarah Chen"}</h1>
       <div className="mt-6 grid gap-2">
         {[
-          ["/preferred", "Preferred drivers · company-mediated"],
-          ["/wallet", "Wallet"],
-          ["/loyalty", "Points"],
-          ["/referral", "Referral"],
-          ["/inbox", "Notifications"],
-          ["/support", "Support"],
-          ["/planner", "Planner"],
-          ["/live", `Live pickup ${live.bookingId}`],
+          ["/preferred", L("Preferred drivers · company-mediated", "指定司機 · 公司仲介")],
+          ["/wallet", L("Wallet", "錢包")],
+          ["/loyalty", L("Points", "點數")],
+          ["/referral", L("Referral", "推薦")],
+          ["/inbox", L("Notifications", "通知")],
+          ["/support", L("Support", "客服")],
+          ["/planner", L("Planner", "行程規劃")],
+          ["/trips", L("My trips", "我的訂單")],
+          ["/live", `${L("Live pickup", "即時接送")} ${live.bookingId}`],
         ].map(([h, l]) => (
           <Link key={h} href={h} className="zf-panel p-4">
             {l}

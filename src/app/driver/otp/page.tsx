@@ -3,5 +3,5 @@
 import { DriverJobFlow } from "@/screens/signal/driver-desk";
 
 export default function Page() {
-  return <DriverJobFlow />;
+  return <DriverJobFlow step="otp" />;
 }

@@ -96,6 +96,7 @@ interface Store {
   requestSwitch: (opts: { bookingId?: string; fromDriverId: string; reason: string; reasonZh: string }) => SwitchRequest;
   decideSwitch: (id: string, status: SwitchStatus, toDriverId?: string) => void;
   tickets: Ticket[];
+  createTicket: (opts: { category: string; categoryZh: string; message: string; bookingId?: string }) => Ticket;
   settlements: Settlement[];
   messages: Message[];
   askHalo: (text: string) => void;
@@ -168,15 +169,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       domain: (() => {
         const incoming = ((parsed?.domain as Partial<DomainState> | undefined) ?? {}) as Partial<DomainState>;
         const base = emptyDomain();
+        const keep = <T,>(xs: T[] | undefined, seed: T[]) => (xs && xs.length ? xs : seed);
         return {
           ...base,
           ...incoming,
           mode: "demo" as const,
-          cancellations: incoming.cancellations ?? base.cancellations,
-          incidents: incoming.incidents ?? base.incidents,
+          cancellations: keep(incoming.cancellations, base.cancellations),
+          incidents: keep(incoming.incidents, base.incidents),
           payments: incoming.payments ?? base.payments,
           wallet: incoming.wallet ?? base.wallet,
-          notifications: incoming.notifications ?? base.notifications,
+          notifications: keep(incoming.notifications, base.notifications),
+          audit: keep(incoming.audit, base.audit),
+          notes: keep(incoming.notes, base.notes),
+          preferredCases: keep(incoming.preferredCases, base.preferredCases),
+          refunds: keep(incoming.refunds, base.refunds),
+          translations: keep(incoming.translations, base.translations),
         };
       })(),
     };
@@ -200,7 +207,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [draftState, setDraftState] = useState<Draft | undefined>(undefined);
   const [bookingsState, setBookingsState] = useState<Booking[] | undefined>(undefined);
   const [switchesState, setSwitchesState] = useState<SwitchRequest[] | undefined>(undefined);
-  const [tickets] = useState<Ticket[]>(seedTickets);
+  const [tickets, setTickets] = useState<Ticket[]>(seedTickets);
   const [settlements] = useState<Settlement[]>(seedSettlements);
   const [messages, setMessages] = useState<Message[]>([
     { id: "m0", role: "agent", text: "走癲派車 24h FAQ · price / modify / cancel / complaint. 英文姓名不翻譯。" },
@@ -459,6 +466,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       },
       tickets,
+      createTicket: ({ category, categoryZh, message, bookingId }) => {
+        const row: Ticket = {
+          id: `TK-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
+          passengerId: user?.id ?? "p1",
+          bookingId,
+          category,
+          categoryZh,
+          message,
+          status: "open",
+          createdAt: new Date().toISOString(),
+        };
+        setTickets((xs) => [row, ...xs]);
+        return row;
+      },
       settlements,
       messages,
       askHalo: (text) => {

@@ -73,6 +73,8 @@ export const seedSwitches: SwitchRequest[] = [
 export const seedTickets: Ticket[] = [
   { id: "TK-110", passengerId: "p1", bookingId: "ZD-1801", category: "Airport Pickup", categoryZh: "機場接送", message: "Confirm 45-min free wait after CI101.", status: "resolved", createdAt: "2026-09-20T14:50:00+08:00" },
   { id: "TK-111", passengerId: "p5", bookingId: "ZD-1809", category: "Cancellation", categoryZh: "取消", message: "Need refund receipt.", status: "l2", createdAt: "2026-09-16T14:20:00+08:00" },
+  { id: "TK-112", passengerId: "p2", bookingId: "ZD-1803", category: "Hourly", categoryZh: "計時", message: "Need English-speaking driver for Jiufen.", status: "resolved", createdAt: "2026-09-10T08:20:00+08:00" },
+  { id: "TK-113", passengerId: "p-sarah", bookingId: "ZF-82041", category: "Airport Pickup", categoryZh: "機場接送", message: "Child seat confirmed on MPV?", status: "open", createdAt: "2026-09-23T12:20:00+08:00" },
 ];
 
 export const seedSettlements: Settlement[] = [

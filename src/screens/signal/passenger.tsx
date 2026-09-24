@@ -9,28 +9,33 @@ import { quote } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { MapMount } from "@/components/signal/map-mount";
 import type { ExtraId, ServiceType } from "@/lib/types";
+import { useCopy } from "@/lib/copy";
 
-const phases: { id: string; label: string }[] = [
-  { id: "booked", label: "Booked" },
-  { id: "flight_monitoring", label: "Flight monitoring" },
-  { id: "driver_assigned", label: "Driver assigned" },
-  { id: "driver_preparing", label: "Preparing" },
-  { id: "en_route_airport", label: "En route to airport" },
-  { id: "near_airport", label: "Near airport" },
-  { id: "arrived", label: "Arrived" },
-  { id: "waiting", label: "Waiting" },
-  { id: "verified", label: "Verified" },
-  { id: "trip_started", label: "Trip started" },
-  { id: "en_route_dest", label: "En route" },
-  { id: "arriving", label: "Arriving" },
-  { id: "completed", label: "Completed" },
-  { id: "disrupted", label: "Operational issue" },
-  { id: "reassigning", label: "Reassigning" },
-  { id: "reassigned", label: "New driver" },
-];
+function usePhases() {
+  const { L } = useCopy();
+  return [
+    { id: "booked", label: L("Booked", "已預訂") },
+    { id: "flight_monitoring", label: L("Flight monitoring", "航班監控") },
+    { id: "driver_assigned", label: L("Driver assigned", "已指派司機") },
+    { id: "driver_preparing", label: L("Preparing", "準備中") },
+    { id: "en_route_airport", label: L("En route to airport", "前往機場") },
+    { id: "near_airport", label: L("Near airport", "接近機場") },
+    { id: "arrived", label: L("Arrived", "已到達") },
+    { id: "waiting", label: L("Waiting", "等候中") },
+    { id: "verified", label: L("Verified", "已驗證") },
+    { id: "trip_started", label: L("Trip started", "行程開始") },
+    { id: "en_route_dest", label: L("En route", "前往目的地") },
+    { id: "arriving", label: L("Arriving", "即將到達") },
+    { id: "completed", label: L("Completed", "已完成") },
+    { id: "disrupted", label: L("Operational issue", "營運異常") },
+    { id: "reassigning", label: L("Reassigning", "重新指派") },
+    { id: "reassigned", label: L("New driver", "新司機") },
+  ];
+}
 
 export function PassengerHome() {
   const { live } = useLive();
+  const { L } = useCopy();
   return (
     <div className="grid min-h-[calc(100vh-56px)] lg:grid-cols-[1.15fr_0.85fr]">
       <div className="relative min-h-[52vh]">
@@ -38,31 +43,31 @@ export function PassengerHome() {
       </div>
       <div className="flex flex-col justify-between p-6 lg:p-10">
         <div>
-          <div className="kicker">Live mobility · Taiwan corridors</div>
-          <h1 className="display mt-3 text-5xl md:text-6xl">The car is already on the network.</h1>
-          <p className="mt-4 max-w-md text-[var(--ink-2)]">Airport, private transfer, charter, taxi. Once you book, this becomes a live pickup — not a confirmation email.</p>
+          <div className="kicker">{L("Live mobility · Taiwan corridors", "即時移動 · 台灣廊帶")}</div>
+          <h1 className="display mt-3 text-5xl md:text-6xl">{L("The car is already on the network.", "車已在網路上。")}</h1>
+          <p className="mt-4 max-w-md text-[var(--ink-2)]">{L("Airport, private transfer, charter, taxi. Once you book, this becomes a live pickup — not a confirmation email.", "接機、包車、計時、計程車。一經預訂，就是現場接送——不是確認信。")}</p>
         </div>
         <div className="mt-8 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             {[
-              ["/book?service=airport_pickup", "Airport pickup"],
-              ["/book?service=airport_drop", "Airport drop-off"],
-              ["/book?service=p2p", "Private transfer"],
-              ["/book?service=hourly", "Hourly"],
-              ["/book?service=instant", "Instant"],
-              ["/book?service=rental", "Self-drive"],
+              ["/book?service=airport_pickup", L("Airport pickup", "機場接機")],
+              ["/book?service=airport_drop", L("Airport drop-off", "機場送機")],
+              ["/book?service=p2p", L("Private transfer", "點對點")],
+              ["/book?service=hourly", L("Hourly", "計時包車")],
+              ["/book?service=instant", L("Instant", "即時計程車")],
+              ["/book?service=rental", L("Self-drive", "自駕租車")],
             ].map(([href, s]) => (
-              <Link key={s} href={href} className="zf-panel px-3 py-3 text-sm font-semibold">
+              <Link key={href} href={href} className="zf-panel px-3 py-3 text-sm font-semibold">
                 {s}
               </Link>
             ))}
           </div>
           <Link href="/book" className="zf-btn wide">
-            Start airport pickup
+            {L("Start airport pickup", "開始機場接機")}
           </Link>
           {live.assignedId ? (
             <Link href="/live" className="zf-btn ghost wide">
-              Open live pickup · {live.bookingId}
+              {L("Open live pickup", "開啟即時接送")} · {live.bookingId}
             </Link>
           ) : null}
         </div>
@@ -185,6 +190,8 @@ export function AirportBook() {
 
 export function PassengerLive() {
   const { live, triggerSos, shareTrip } = useLive();
+  const { L } = useCopy();
+  const phases = usePhases();
   const [shareMsg, setShareMsg] = useState("");
   const d = live.drivers.find((x) => x.id === live.assignedId);
   const idx = phases.findIndex((p) => p.id === live.phase);
@@ -208,7 +215,7 @@ export function PassengerLive() {
         <span className="zf-chip live">LIVE PICKUP</span>
         <div className="pointer-events-auto flex gap-2">
           <button type="button" className="zf-btn ghost" data-testid="share-trip" onClick={() => void onShare()}>
-            Share trip
+            {L("Share trip", "分享行程")}
           </button>
           <button className="zf-btn" onClick={triggerSos}>
             SOS
@@ -244,7 +251,7 @@ export function PassengerLive() {
               <div className="mono text-2xl tracking-[0.18em]">{live.otp}</div>
             </div>
           ) : (
-            <p className="mt-3 text-sm">Flight monitoring. Driver assignment follows company dispatch — not a private handshake.</p>
+            <p className="mt-3 text-sm">{L("Flight monitoring. Driver assignment follows company dispatch — not a private handshake.", "航班監控中。司機由公司派遣指派——不是私下約定。")}</p>
           )}
           <p className="mt-2 text-xs text-[var(--mute)]">{live.trafficNote}</p>
           <ol className="mt-3 flex gap-1 overflow-x-auto">
@@ -260,14 +267,15 @@ export function PassengerLive() {
 
 export function PreferredDrivers() {
   const { live, requestPreferred } = useLive();
+  const { L } = useCopy();
   const david = live.drivers[0];
   const st = live.preferred?.status;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="kicker">Company-mediated preference · M25</div>
-      <h1 className="display mt-2 text-5xl">My previous drivers</h1>
-      <p className="mt-3 max-w-xl text-[var(--ink-2)]">Driver preference is a request and is subject to availability and company confirmation. You never book a driver privately.</p>
+      <div className="kicker">{L("Company-mediated preference · M25", "公司仲介指定司機 · M25")}</div>
+      <h1 className="display mt-2 text-5xl">{L("My previous drivers", "我的歷史司機")}</h1>
+      <p className="mt-3 max-w-xl text-[var(--ink-2)]">{L("Driver preference is a request and is subject to availability and company confirmation. You never book a driver privately.", "指定司機是申請，需視檔期與公司確認。你不能私下預訂司機。")}</p>
       <div className="zf-panel mt-6 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -277,31 +285,31 @@ export function PreferredDrivers() {
             </div>
           </div>
           <button type="button" className="zf-btn" data-testid="request-preferred" onClick={() => requestPreferred(david.id)}>
-            Request this driver
+            {L("Request this driver", "申請這位司機")}
           </button>
         </div>
-        <p className="mt-3 text-sm">Preferred Driver premium +18% (configurable 15–20%). Fallback: nearest similar class if David is unavailable.</p>
+        <p className="mt-3 text-sm">{L("Preferred Driver premium +18% (configurable 15–20%). Fallback: nearest similar class if David is unavailable.", "指定司機加成 +18%（可設 15–20%）。若 David 不可用，改派最近同級車輛。")}</p>
       </div>
       <div className="zf-panel mt-4 p-5">
-        <div className="kicker">Request status</div>
+        <div className="kicker">{L("Request status", "申請狀態")}</div>
         <ol className="mt-3 space-y-2 text-sm">
           {[
-            ["pending", "Request received by Zoufeng"],
-            ["under_review", "Ops reviewing availability / vehicle / schedule"],
-            ["validated", "Company validation passed"],
-            ["company_offered", "Official company offer issued"],
-            ["driver_offered", "Offer on the driver desk"],
-            ["confirmed", "Preferred driver confirmed"],
-            ["rejected", "Rejected / cancelled"],
+            ["pending", L("Request received by Zoufeng", "走癲已收到申請")],
+            ["under_review", L("Ops reviewing availability / vehicle / schedule", "調度審核檔期／車款／時間")],
+            ["validated", L("Company validation passed", "公司驗證通過")],
+            ["company_offered", L("Official company offer issued", "公司正式指派已發出")],
+            ["driver_offered", L("Offer on the driver desk", "指派已到司機端")],
+            ["confirmed", L("Preferred driver confirmed", "指定司機已確認")],
+            ["rejected", L("Rejected / cancelled", "已拒絕／已取消")],
           ].map(([k, l]) => (
             <li key={k} className={st === k ? "text-[var(--signal)]" : "text-[var(--mute)]"}>
               {l}
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-sm text-[var(--ink-2)]">Company validation and the official offer happen on the operations preferred queue — not on this passenger screen.</p>
+        <p className="mt-3 text-sm text-[var(--ink-2)]">{L("Company validation and the official offer happen on the operations preferred queue — not on this passenger screen.", "公司驗證與正式指派在調度指定佇列完成——不在此乘客畫面。")}</p>
         <Link href="/ops/preferred" className="zf-btn ghost mt-3" data-testid="preferred-ops-link">
-          Open company queue
+          {L("Open company queue", "開啟公司佇列")}
         </Link>
         {st === "confirmed" ? <p className="mt-3 font-semibold">{live.customerNotice}</p> : null}
       </div>

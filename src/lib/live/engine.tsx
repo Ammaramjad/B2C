@@ -101,6 +101,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           offerKind: parsed.offerKind ?? null,
           shareToken: parsed.shareToken ?? null,
           rejects: parsed.rejects ?? {},
+          events: parsed.events?.length ? parsed.events : initialSnapshot().events,
           drivers: (parsed.drivers ?? []).map((d) => ({ ...d, duty: d.duty ?? "online" })),
           preferred: parsed.preferred
             ? { ...parsed.preferred, customer: parsed.preferred.customer ?? parsed.passenger }
