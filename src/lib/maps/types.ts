@@ -1,6 +1,6 @@
 import type { GeoPoint } from "../live/types.ts";
 
-export type GeoProviderId = "simulation" | "production";
+export type GeoProviderId = "simulation" | "production" | "community" | "google";
 
 export type RouteResult = { path: GeoPoint[]; km: number; etaMin: number; source: GeoProviderId };
 export type TrafficResult = { level: "clear" | "heavy" | "incident"; note: string; source: GeoProviderId };

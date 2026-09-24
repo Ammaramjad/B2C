@@ -1,7 +1,12 @@
 "use client";
 
-import { GoHome } from "@/screens/signal/marketplace";
+import { Suspense } from "react";
+import { BookingExperience } from "@/screens/signal/booking-command";
 
 export default function Page() {
-  return <GoHome />;
+  return (
+    <Suspense fallback={<div className="zf-cmd p-6">Loading booking…</div>}>
+      <BookingExperience />
+    </Suspense>
+  );
 }
