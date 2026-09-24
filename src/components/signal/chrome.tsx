@@ -76,23 +76,23 @@ function LocaleBar() {
 
 function RoleJump() {
   const { L } = useCopy();
+  const items = [
+    ["/", L("Customer", "乘客")],
+    ["/driver", L("Driver", "司機")],
+    ["/ops", L("Ops", "調度")],
+    ["/admin/services", L("Admin", "後台")],
+    ["/demo", "Demo"],
+  ];
   return (
-    <nav className="flex flex-wrap items-center gap-2 text-[11px]" data-testid="role-jump">
-      <Link href="/" className="underline">
-        {L("Customer", "乘客")}
-      </Link>
-      <Link href="/driver" className="underline">
-        {L("Driver", "司機")}
-      </Link>
-      <Link href="/ops" className="underline">
-        {L("Ops", "調度")}
-      </Link>
-      <Link href="/admin/services" className="underline">
-        {L("Admin", "後台")}
-      </Link>
-      <Link href="/demo" className="underline">
-        Demo
-      </Link>
+    <nav className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]" data-testid="role-jump">
+      {items.map(([h, l], i) => (
+        <span key={h} className="inline-flex items-center gap-3">
+          {i > 0 ? <span className="text-[var(--mute)]">·</span> : null}
+          <Link href={h} className="underline-offset-4 hover:underline">
+            {l}
+          </Link>
+        </span>
+      ))}
     </nav>
   );
 }
@@ -283,21 +283,21 @@ export function OpsChrome({ children }: { children: React.ReactNode }) {
     ["/ops/preferred", L("Preferred", "指定")],
   ];
   return (
-    <div className="grid min-h-screen grid-cols-[64px_1fr] md:grid-cols-[76px_1fr]">
+    <div className="grid min-h-screen grid-cols-[88px_1fr] md:grid-cols-[168px_1fr]">
       <HtmlLang />
       <aside className="border-r border-[var(--line)] bg-[var(--paper)]">
-        <Link href="/ops" className="block px-3 py-4">
+        <Link href="/ops" className="block px-4 py-5">
           <span className="zf-pin" style={{ background: "var(--signal)", width: 16, height: 16 }} />
-          <div className="mt-2 text-[10px] tracking-[0.14em]">ZF OPS</div>
+          <div className="mt-2 text-[12px] font-semibold tracking-[0.08em]">ZF OPS</div>
         </Link>
         {rail.map(([h, l]) => (
-          <Link key={h} href={h} className={`block px-3 py-3 text-[11px] ${path === h ? "text-[var(--signal)]" : "text-[var(--mute)]"}`}>
+          <Link key={h} href={h} className={`mx-2 mb-1 block rounded-xl px-3 py-2.5 text-[13px] ${path === h ? "bg-[var(--mist)] text-[var(--signal)]" : "text-[var(--mute)]"}`}>
             {l}
           </Link>
         ))}
       </aside>
       <div className="flex min-w-0 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <input className="w-full max-w-md border border-[var(--line)] bg-[var(--paper)] px-3 py-2 text-sm" placeholder={L("Command: ZF-82041 · BR156 · D-118 · TPE", "指令：ZF-82041 · BR156 · D-118 · TPE")} />
           <div className="flex flex-wrap items-center gap-2">
             <LocaleBar />
