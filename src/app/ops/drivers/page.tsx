@@ -1,6 +1,6 @@
 "use client";
 
-import { DriverDirectory } from "@/screens/ops/screens";
+import { DriverDirectory } from "@/screens/signal/ops";
 
 export default function Page() {
   return <DriverDirectory />;
