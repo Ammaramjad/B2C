@@ -7,7 +7,7 @@ import { cities } from "@/lib/catalog";
 import { useCopy } from "@/lib/copy";
 
 const HERO = "https://images.unsplash.com/photo-1470004912531-91af144e4a8b?w=2000&q=80";
-const VAN = "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1400&q=80";
+const VAN = "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=1600&q=80";
 
 const SERVICES = [
   { href: "/go?service=airport_pickup", en: "Airport transfer", zh: "機場接送", img: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=900&q=80", dEn: "Flight-aware pickup and drop-off", dZh: "航班連動接機／送機" },
