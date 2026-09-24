@@ -1,7 +1,7 @@
 "use client";
 
-import { PassengerHome } from "@/screens/signal/passenger";
+import { SiteHome } from "@/screens/signal/site-home";
 
 export default function Page() {
-  return <PassengerHome />;
+  return <SiteHome />;
 }

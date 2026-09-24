@@ -407,6 +407,54 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
   );
 }
 
+function SiteChrome({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const { L, locale, setLocale } = useCopy();
+  const links = [
+    ["/", L("Home", "首頁")],
+    ["/go", L("Book", "預訂行程")],
+    ["/go?service=airport_pickup", L("Airport", "機場接送")],
+    ["/go?service=hourly", L("Charter", "包車旅遊")],
+    ["/go?service=instant", L("Corporate", "企業用車")],
+    ["/fleet", L("Fleet", "車隊介紹")],
+    ["/destinations", L("Explore", "探索台灣")],
+  ];
+  return (
+    <div className="zf-site" data-os="site">
+      <HtmlLang />
+      <header className="zf-site-nav">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="zf-pin" style={{ background: "#e11d2e", width: 16, height: 16 }} />
+          <span>
+            <b>ZOUFENG</b>
+            <div className="text-[11px] text-[#8b93a0]">{L("Taiwan mobility", "台灣專業移動服務")}</div>
+          </span>
+        </Link>
+        <nav className="hidden lg:flex">
+          {links.map(([h, l]) => (
+            <Link key={h} href={h} className={path === h || (h !== "/" && path.startsWith(h.split("?")[0]) && h !== "/go") ? "on" : ""}>
+              {l}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex items-center gap-3 text-sm">
+          <button type="button" onClick={() => setLocale(locale === "en" ? "zh" : "en")}>{locale === "en" ? "EN" : "繁體中文"}</button>
+          <Link href="/login">{L("Sign in", "登入 / 註冊")}</Link>
+        </div>
+      </header>
+      <main>{children}</main>
+      <nav className="zf-site-dock" aria-label={L("Whole system", "完整系統")}>
+        <Link href="/" className={path === "/" ? "on" : ""}>{L("Customer", "旅客")}</Link>
+        <Link href="/fleet" className={path.startsWith("/fleet") ? "on" : ""}>{L("Drivers", "車隊名錄")}</Link>
+        <Link href="/driver">{L("Driver desk", "司機台")}</Link>
+        <Link href="/ops">{L("Ops", "調度")}</Link>
+        <Link href="/admin/services">{L("Admin", "後台")}</Link>
+        <Link href="/go">{L("Book", "預訂")}</Link>
+      </nav>
+    </div>
+  );
+}
+
 function GuestChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
@@ -418,7 +466,9 @@ function GuestChrome({ children }: { children: React.ReactNode }) {
 
 export function SignalRoot({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const os = path.startsWith("/go")
+  const os = path === "/" || path.startsWith("/fleet")
+    ? "site"
+    : path.startsWith("/go")
     ? "guest"
     : path.startsWith("/driver")
       ? "driver"
@@ -430,7 +480,8 @@ export function SignalRoot({ children }: { children: React.ReactNode }) {
             ? "system"
             : "passenger";
   return (
-    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" || os === "guest" ? "passenger" : os} className="min-h-screen">
+    <div data-os={os === "system" ? (path.startsWith("/demo") ? "ops" : "passenger") : os === "admin" || os === "guest" || os === "site" ? "passenger" : os} className="min-h-screen">
+      {os === "site" ? <SiteChrome>{children}</SiteChrome> : null}
       {os === "guest" ? <GuestChrome>{children}</GuestChrome> : null}
       {os === "passenger" ? <PassengerChrome>{children}</PassengerChrome> : null}
       {os === "driver" ? <DriverChrome>{children}</DriverChrome> : null}

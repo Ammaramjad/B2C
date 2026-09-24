@@ -8,6 +8,7 @@ import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
 import { drivers } from "@/lib/data";
 import { useStore } from "@/lib/store";
+import { useCopy } from "@/lib/copy";
 
 function Counters() {
   const { live } = useLive();
@@ -305,38 +306,28 @@ export function FleetLive() {
 
 export function DriverDirectory() {
   const { live } = useLive();
+  const { L } = useCopy();
   return (
-    <div className="p-4">
-      <h1 className="display text-3xl">Drivers</h1>
-      <table className="mt-4 w-full text-left text-sm">
-        <thead>
-          <tr className="text-[11px] uppercase text-[var(--mute)]">
-            <th className="py-2">Driver</th>
-            <th>State</th>
-            <th>Vehicle</th>
-            <th>Accept</th>
-            <th>On-time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {live.drivers.map((d) => (
-            <tr key={d.id} className="border-t border-[var(--line)]">
-              <td className="py-2">
-                <Link href={`/ops/drivers/${d.id}`} className="underline">
-                  {d.name}
-                </Link>
-                <div className="text-[11px] text-[var(--mute)]">{d.id}</div>
-              </td>
-              <td>{d.state}</td>
-              <td>
-                {d.klass} · {d.plate}
-              </td>
-              <td>{Math.round(d.accept * 100)}%</td>
-              <td>{Math.round(d.onTime * 100)}%</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="p-5">
+      <h1 className="display text-4xl">{L("Drivers directory", "司機名錄")}</h1>
+      <p className="mt-2 text-sm text-[var(--mute)]">{L("Live duty from the Signal tape. Open a card for the 360.", "執勤來自 Signal 事件帶。卡片進入 360。")}</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {live.drivers.map((d) => (
+          <Link key={d.id} href={`/ops/drivers/${d.id}`} className="zf-glass p-4">
+            <div className="flex items-center justify-between">
+              <b>{d.name}</b>
+              <span className="zf-chip live">{d.duty}</span>
+            </div>
+            <p className="mt-1 text-sm">{d.vehicle} · {d.plate} · {d.klass}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+              <div><div className="kicker">Accept</div>{Math.round(d.accept * 100)}%</div>
+              <div><div className="kicker">On-time</div>{Math.round(d.onTime * 100)}%</div>
+              <div><div className="kicker">Hours</div>{d.onlineHours}</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+      <p className="mt-4 text-sm"><Link href="/fleet" className="underline">{L("Public fleet page", "公開車隊頁")}</Link></p>
     </div>
   );
 }
