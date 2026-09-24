@@ -438,7 +438,25 @@ function SiteChrome({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="flex items-center gap-3 text-sm">
-          <button type="button" onClick={() => setLocale(locale === "en" ? "zh" : "en")}>{locale === "en" ? "EN" : "繁體中文"}</button>
+          <div className="flex rounded-full border border-[#e6ebf2] bg-[#f3f6fb] p-1" data-testid="site-locale">
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              style={{ minHeight: 28, padding: "0 10px", border: 0, borderRadius: 999, background: locale === "en" ? "#2b7cff" : "transparent", color: locale === "en" ? "#fff" : "#4a5568", fontWeight: 600 }}
+              onClick={() => setLocale("en")}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              className={locale === "zh" ? "on" : ""}
+              style={{ minHeight: 28, padding: "0 10px", border: 0, borderRadius: 999, background: locale === "zh" ? "#2b7cff" : "transparent", color: locale === "zh" ? "#fff" : "#4a5568", fontWeight: 600 }}
+              onClick={() => setLocale("zh")}
+              data-testid="site-locale-zh"
+            >
+              繁中
+            </button>
+          </div>
           <Link href="/login" className="zf-btn" style={{ minHeight: 36, padding: "0 14px" }}>{L("Sign in", "登入")}</Link>
         </div>
       </header>
