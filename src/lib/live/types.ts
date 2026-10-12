@@ -119,6 +119,7 @@ export type PreferredRequest = {
 };
 
 export type LiveSnapshot = {
+  bookedClass?: string;
   scenario: "pickup" | "preferred";
   playing: boolean;
   sim: boolean;

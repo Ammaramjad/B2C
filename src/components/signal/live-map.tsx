@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, CircleMarker, useMap, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -43,7 +43,10 @@ function pin(state: DriverMarkerState | "passenger" | "airport" | "incident") {
 
 function Fit({ points }: { points: GeoPoint[] }) {
   const map = useMap();
+  const fitted = useRef(false);
   useEffect(() => {
+    if (fitted.current) return;
+    fitted.current = true;
     if (points.length < 2) {
       map.setView([TPE_T1.lat, TPE_T1.lng], 12);
       return;
@@ -70,7 +73,7 @@ export function LiveMap({
 
   return (
     <div className="zf-map" style={{ height }}>
-      <MapContainer center={[25.05, 121.4]} zoom={11} zoomControl={false} attributionControl={false} className="h-full w-full" style={{ height: "100%", minHeight: 320 }}>
+      <MapContainer center={[25.05, 121.4]} zoom={11} zoomControl={false} attributionControl={true} className="h-full w-full" style={{ height: "100%", minHeight: 320 }}>
         <TileLayer url={tiles[mode]} attribution={mode === "day" ? "© OpenStreetMap" : "Esri"} />
         <Fit points={focus} />
         {route.length > 1 ? <Polyline positions={route} pathOptions={{ color: "#E31C23", weight: 4, opacity: 0.9 }} /> : null}
@@ -79,7 +82,7 @@ export function LiveMap({
         ) : null}
         <Marker position={[TPE_T1.lat, TPE_T1.lng]} icon={pin("airport")}>
           <Tooltip permanent direction="right" className="zf-tip">
-            TPE T2
+            TPE T1
           </Tooltip>
         </Marker>
         <Marker position={[TAIPEI_101.lat, TAIPEI_101.lng]} icon={pin("passenger")}>
@@ -87,7 +90,7 @@ export function LiveMap({
             Xinyi
           </Tooltip>
         </Marker>
-        {(showFleet ? live.drivers : live.drivers.filter((d) => d.id === live.assignedId || live.candidates.some((c) => c.id === d.id))).map((d) => (
+        {(showFleet ? live.drivers : live.drivers.filter((d) => d.id === live.assignedId)).map((d) => (
           <DriverMark key={d.id} d={d} highlight={d.id === live.assignedId} />
         ))}
         {live.incident ? (

@@ -7,7 +7,7 @@ import { SignalRoot } from "@/components/signal/chrome";
 
 const sans = Outfit({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
 const mono = IBM_Plex_Mono({ variable: "--font-mono", subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
-const cjk = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "700"], display: "swap" });
+const cjk = Noto_Sans_TC({ variable: "--font-cjk", weight: ["400", "500", "700"], display: "swap", preload: false });
 
 export const metadata: Metadata = {
   title: "Zoufeng Signal — Live Mobility OS",

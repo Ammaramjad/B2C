@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStore } from "@/lib/store";
 import { useLive } from "@/lib/live/engine";
 
 function Director() {
@@ -34,7 +35,11 @@ function Director() {
 export function PassengerChrome({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { live } = useLive();
-  const tabs = [
+  const { user } = useStore();
+  const tabs = user?.role === "passenger" ? [
+    ["/dashboard", "My trip"], ["/trips", "History"], ["/preferred", "Drivers"],
+    ["/support", "Support"], ["/account", "You"],
+  ] : [
     ["/", "Move"],
     ["/book", "Book"],
     ["/live", "Live"],

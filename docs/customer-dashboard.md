@@ -1,0 +1,13 @@
+# Customer dashboard update
+
+Passenger demo sign-in now opens `/dashboard`. Existing passenger sessions on `/` show the same dashboard. `/live` also uses the dashboard. Booking confirmation stores flight, vehicle category, fare and a new booking reference before sign-in; the role gate preserves those fields. The customer navigation contains My trip, History, Drivers, Support and You, with a small Book another trip action.
+
+The dashboard displays a responsive map beside the assigned vehicle details, ETA and trip timeline. The map only displays the assigned vehicle, never replacement candidates. Google Maps uses AdvancedMarkerElement and smooth position interpolation with reduced-motion support. It loads only on tracking pages; configure the public environment variables in `.env.example`. With no key, an explicitly labeled Leaflet preview remains available. Google Maps positions can be opened separately. Map fitting no longer repeats on every position update, preserving user zoom and pan. Flight delay remains separate from pickup delay.
+
+Performance changes: map modules are split out of the dashboard bundle, synchronous scenario storage writes are throttled to approximately three seconds, the persisted event history is capped at 100, and Chinese font preloading is disabled. These reduce work but do not establish a measured production page-speed improvement.
+
+## Production dependencies still required
+
+This repository is a prototype: role selection is not authentication, trips are localStorage demo snapshots, and no authenticated driver GPS server exists. Changes do not create a production tracking service. The existing MPV disruption scenario stays explicitly labeled as simulated; non-MPV bookings remain awaiting assignment rather than displaying a mismatched vehicle.
+
+Before production use, connect booking-specific server snapshots to the shared live engine, authenticate and authorize customer/driver/company access, record real acceptedAt/departedAt/tripStartedAt timestamps, stream driver coordinates with receivedAt and heading, and obtain route geometry and traffic ETA from the selected routing provider. Use the persisted scheduled pickup time to calculate pickup delay; expose stale or unavailable GPS based on the server timestamp. Current coordinate text intentionally does not claim a real update timestamp. Driver contact/photo data also require the real driver record. Existing route endpoints are demo coordinates and must be replaced with the actual booking coordinates when integrating server snapshots. Test across separate customer, driver and admin devices; localStorage synchronization only works across tabs on the same browser origin.

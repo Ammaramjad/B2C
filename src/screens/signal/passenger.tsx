@@ -1,31 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { CustomerDashboard } from "./customer-dashboard";
+import { useStore } from "@/lib/store";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLive } from "@/lib/live/engine";
 import { MapMount } from "@/components/signal/map-mount";
 
-const phases: { id: string; label: string }[] = [
-  { id: "booked", label: "Booked" },
-  { id: "flight_monitoring", label: "Flight monitoring" },
-  { id: "driver_assigned", label: "Driver assigned" },
-  { id: "driver_preparing", label: "Preparing" },
-  { id: "en_route_airport", label: "En route to airport" },
-  { id: "near_airport", label: "Near airport" },
-  { id: "arrived", label: "Arrived" },
-  { id: "waiting", label: "Waiting" },
-  { id: "verified", label: "Verified" },
-  { id: "trip_started", label: "Trip started" },
-  { id: "en_route_dest", label: "En route" },
-  { id: "arriving", label: "Arriving" },
-  { id: "completed", label: "Completed" },
-  { id: "disrupted", label: "Operational issue" },
-  { id: "reassigning", label: "Reassigning" },
-  { id: "reassigned", label: "New driver" },
-];
-
 export function PassengerHome() {
   const { live } = useLive();
+  const { user } = useStore();
+  if (user?.role === "passenger") return <CustomerDashboard />;
   return (
     <div className="grid min-h-[calc(100vh-56px)] lg:grid-cols-[1.15fr_0.85fr]">
       <div className="relative min-h-[52vh]">
@@ -60,7 +46,9 @@ export function PassengerHome() {
 }
 
 export function AirportBook() {
-  const { live } = useLive();
+  const { live, createBooking } = useLive();
+  const router = useRouter();
+  const { user } = useStore();
   const [pax, setPax] = useState(5);
   const [bags, setBags] = useState(4);
   const [flight, setFlight] = useState("BR156");
@@ -121,71 +109,17 @@ export function AirportBook() {
             <div className="kicker">Quote updates live</div>
             <div className="zf-metric text-3xl">NT${fare.toLocaleString()}</div>
           </div>
-          <Link href="/live" className="zf-btn">
-            Confirm ZF-82041
-          </Link>
+          <button disabled={fit || pax < 1 || bags < 0 || !flight.trim()} className="zf-btn disabled:opacity-40" onClick={() => {
+            createBooking(flight, klass, fare);
+            router.push(user?.role === "passenger" ? "/dashboard" : "/login");
+          }}>Confirm booking</button>
         </div>
       </div>
     </div>
   );
 }
 
-export function PassengerLive() {
-  const { live } = useLive();
-  const d = live.drivers.find((x) => x.id === live.assignedId);
-  const idx = phases.findIndex((p) => p.id === live.phase);
-  return (
-    <div className="relative min-h-[calc(100vh-56px)]">
-      <div className="absolute inset-0">
-        <MapMount mode="day" height="100%" showFleet={false} />
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-[2000] flex justify-between px-4">
-        <span className="zf-chip live">LIVE PICKUP</span>
-        <div className="pointer-events-auto flex gap-2">
-          <button className="zf-btn ghost">Share trip</button>
-          <button className="zf-btn">SOS</button>
-        </div>
-      </div>
-      <div className="absolute inset-x-0 bottom-16 z-[2000] md:bottom-4">
-        <div className="mx-auto max-w-xl zf-panel p-4">
-          <div className="flex justify-between gap-4">
-            <div>
-              <div className="kicker">{live.bookingId} · {live.flight}</div>
-              <div className="mt-1 text-lg font-semibold">{phases[Math.max(0, idx)]?.label}</div>
-              <p className="text-sm text-[var(--ink-2)]">
-                {live.pickup} → {live.dropoff}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="kicker">ETA</div>
-              <div className="zf-metric text-4xl">{live.etaMin || "—"}</div>
-              <div className="text-xs">{live.distanceKm ? `${live.distanceKm} km` : ""}</div>
-            </div>
-          </div>
-          {d ? (
-            <div className="mt-3 flex justify-between text-sm">
-              <div>
-                <b>{d.name}</b>
-                <div>
-                  {d.vehicle} · {d.plate} · {d.rating}
-                </div>
-              </div>
-              <div className="mono text-2xl tracking-[0.18em]">{live.otp}</div>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm">Flight monitoring. Driver assignment follows company dispatch — not a private handshake.</p>
-          )}
-          <p className="mt-2 text-xs text-[var(--mute)]">{live.trafficNote}</p>
-          <ol className="mt-3 flex gap-1 overflow-x-auto">
-            {phases.slice(0, 12).map((p, i) => (
-              <li key={p.id} className={`h-1 min-w-6 flex-1 ${i <= idx ? "bg-[var(--signal)]" : "bg-[var(--line)]"}`} />
-            ))}
-          </ol>
-        </div>
-      </div>
-    </div>
-  );
-}
+export function PassengerLive() { return <CustomerDashboard />; }
 
 export function PreferredDrivers() {
   const { live, requestPreferred, validatePreferred, offerPreferred, acceptPreferred } = useLive();

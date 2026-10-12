@@ -7,6 +7,7 @@ import type { Candidate, EventType, LiveEvent, LiveSnapshot, Severity } from "./
 
 type LiveApi = {
   live: LiveSnapshot;
+  createBooking: (flight: string, klass: string, fare: number) => void;
   play: () => void;
   pause: () => void;
   reset: (scenario?: LiveSnapshot["scenario"]) => void;
@@ -60,6 +61,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const [live, setLive] = useState<LiveSnapshot>(initialSnapshot);
   const tRef = useRef(0);
   const beat = useRef(0);
+  const lastPersist = useRef(0);
 
   useEffect(() => {
     try {
@@ -85,11 +87,14 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify({ ...live, beat: beat.current, playing: false }));
-    } catch {
-      /* ignore */
-    }
+    const persist = () => {
+      try { localStorage.setItem(KEY, JSON.stringify({ ...live, events: live.events.slice(0, 100), beat: beat.current, playing: false })); }
+      catch { /* Storage may be unavailable. */ }
+    };
+    // Throttle synchronous writes while GPS/scenario updates arrive.
+    const timer = window.setTimeout(() => { persist(); lastPersist.current = Date.now(); }, Math.max(0, (live.playing ? 3000 : 0) - (Date.now() - lastPersist.current)));
+    window.addEventListener("pagehide", persist);
+    return () => { window.clearTimeout(timer); window.removeEventListener("pagehide", persist); };
   }, [live]);
 
   const step = useCallback(() => {
@@ -255,6 +260,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const api = useMemo<LiveApi>(
     () => ({
       live,
+      createBooking: (flight, klass, fare) => {
+        beat.current = 0;
+        tRef.current = 0;
+        setLive({ ...initialSnapshot(), bookedClass: klass, flight, fare, bookingId: `ZF-${Date.now().toString(36).toUpperCase()}` });
+      },
       play: () => setLive((s) => ({ ...s, playing: true })),
       pause: () => setLive((s) => ({ ...s, playing: false })),
       reset: (scenario) => {
@@ -339,6 +349,9 @@ function animateTick(s: LiveSnapshot): LiveSnapshot {
 }
 
 function pickupBeat(s: LiveSnapshot, n: number): LiveSnapshot {
+  // The scripted disruption scenario is MPV-specific. Other classes must never
+  // silently receive its seeded MPV assignment.
+  if (s.bookedClass && s.bookedClass !== "MPV") return s;
   const clock = ["19:28", "19:29", "19:30", "19:31", "19:32", "19:33", "19:34", "19:34", "19:35", "19:35", "19:36", "19:38", "19:41", "19:48"][
     Math.min(n, 13)
   ];
@@ -359,7 +372,9 @@ function pickupBeat(s: LiveSnapshot, n: number): LiveSnapshot {
       etaMin: 24,
       distanceKm: 18,
       drivers: s.drivers.map((d) => (d.id === "D-118" ? { ...d, state: "to_pickup" } : d)),
-      events: [ev(clock, "booking.status.changed", "info", ["passenger", "ops"], "David Chen assigned", "MPV · TPE-4410 · company dispatch"), ...s.events],
+      events: [
+        ev(clock, "dispatch.offer.accepted", "info", ["passenger", "driver", "ops"], "David Chen accepted", "MPV · TPE-4410", { bookingId: s.bookingId, driverId: "D-118" }),
+        ev(clock, "booking.status.changed", "info", ["passenger", "ops"], "David Chen assigned", "MPV · TPE-4410 · company dispatch"), ...s.events],
     };
   }
   if (n === 3) {

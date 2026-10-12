@@ -172,3 +172,5 @@ button, input, select, textarea { font: inherit; color: inherit; }
     transition-duration: 0.01ms !important;
   }
 }
+
+.zf-vehicle { font-size: 30px; line-height: 1; padding: 6px; background: white; border: 2px solid var(--signal); border-radius: 12px; box-shadow: 0 2px 8px #0003; }

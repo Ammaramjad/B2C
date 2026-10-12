@@ -528,7 +528,7 @@ export function LoginScreen() {
           ["ops", "Operations"],
           ["dispatcher", "Dispatch"],
         ].map(([role, label]) => (
-          <Btn key={role} href={role === "driver" ? "/driver" : role === "passenger" ? "/" : "/ops"} onClick={() => login(`${role}@zoufeng.travel`, role as never)}>
+          <Btn key={role} href={role === "driver" ? "/driver" : role === "passenger" ? "/dashboard" : "/ops"} onClick={() => login(`${role}@zoufeng.travel`, role as never)}>
             Continue as {label}
           </Btn>
         ))}
